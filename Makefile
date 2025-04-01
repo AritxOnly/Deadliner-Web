@@ -4,15 +4,17 @@ ifeq ($(OS),Windows_NT)
     RM := rd /s /q
     PYTHON := python
     NPM := npm.cmd
+    DATE := $(shell powershell -Command "Get-Date -Format yyyy-MM-dd")
 else
     DETECTED_OS := $(shell uname -s)
     RM := rm -rf
     PYTHON := python3
     NPM := npm
+    DATE := $(shell date +%Y-%m-%d)
 endif
 
 # 包含子模块配置
-include backend/nodejs-middleware/build.mk
+include backend/nodejs-backend/build.mk
 include backend/python-ai-service/build.mk
 
 CURRENT_BRANCH := $(shell git branch --show-current)
@@ -27,5 +29,16 @@ clean: clean-nodejs clean-python
 push:
 	@echo "Pushing to branch: $(CURRENT_BRANCH)"
 	git push origin $(CURRENT_BRANCH)
+
+pull:
+	@echo "Pulling from branch: $(CURRENT_BRANCH)"
+	git pull origin $(CURRENT_BRANCH)
+
+MSG := commit from Makefile at 
+
+commit:
+	@echo "Committing changes to branch: $(CURRENT_BRANCH)"
+	git add .
+	git commit -am "$(MSG): $(DATE)"
 
 .PHONY: init install clean push

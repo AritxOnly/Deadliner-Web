@@ -1,4 +1,4 @@
-NODEJS_PATH := backend/nodejs-middleware
+NODEJS_PATH := backend/nodejs-backend
 
 install-nodejs:
 	@echo "[$(DETECTED_OS)] Installing Node.js dependencies..."
@@ -14,4 +14,4 @@ test-nodejs:
 
 clean-nodejs:
 	@echo "[$(DETECTED_OS)] Cleaning Node.js modules..."
-	if exist "$(NODEJS_PATH)\node_modules" $(RM) "$(NODEJS_PATH)\node_modules"
+	$(RM) "$(NODEJS_PATH)\node_modules"

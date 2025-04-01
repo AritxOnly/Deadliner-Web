@@ -7,5 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "AritxZhou",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "sqlite3": "^5.1.7",
+    "sequelize": "^6.37.7",
+    "body-parser": "^2.2.0",
+    "axios": "^1.8.4",
+    "jsonwebtoken": "^9.0.2"
+  }
 }

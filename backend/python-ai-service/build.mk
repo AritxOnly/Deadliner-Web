@@ -23,5 +23,5 @@ install-python: create-venv
 
 clean-python:
 	@echo "[$(DETECTED_OS)] Cleaning Python environment..."
-	if exist "$(PYTHON_PATH)/$(VENV_NAME)" $(RM) "$(PYTHON_PATH)/$(VENV_NAME)"
-	if exist "$(PYTHON_PATH)/__pycache__" $(RM) "$(PYTHON_PATH)/__pycache__"
+	$(RM) "$(PYTHON_PATH)/$(VENV_NAME)"
+	$(RM) "$(PYTHON_PATH)/__pycache__"

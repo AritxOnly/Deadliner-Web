@@ -1,22 +1,17 @@
 NODEJS_PATH := backend/nodejs-middleware
 
-# 安装依赖
 install-nodejs:
-	@echo "Installing dependencies in Node.js middleware..."
-	cd $(NODEJS_PATH) && npm install
+	@echo "[$(DETECTED_OS)] Installing Node.js dependencies..."
+	cd $(NODEJS_PATH) && $(NPM) install
 
-# 启动服务器
 start-nodejs:
-	@echo "Starting the Node.js middleware server..."
-	cd $(NODEJS_PATH) && npm start
+	@echo "[$(DETECTED_OS)] Starting Node.js server..."
+	cd $(NODEJS_PATH) && $(NPM) start
 
-# 运行测试
 test-nodejs:
-	@echo "Running tests in Node.js middleware..."
-	cd $(NODEJS_PATH) && npm test
+	@echo "[$(DETECTED_OS)] Running Node.js tests..."
+	cd $(NODEJS_PATH) && $(NPM) test
 
-# 清理 node_modules 并重新安装
 clean-nodejs:
-	@echo "Cleaning node_modules and reinstalling..."
-	rm -rf node_modules
-	cd $(NODEJS_PATH) && npm install
+	@echo "[$(DETECTED_OS)] Cleaning Node.js modules..."
+	if exist "$(NODEJS_PATH)\node_modules" $(RM) "$(NODEJS_PATH)\node_modules"

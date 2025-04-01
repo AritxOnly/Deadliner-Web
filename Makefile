@@ -26,11 +26,11 @@ init: create-venv
 install: install-nodejs install-python
 clean: clean-nodejs clean-python
 
-push:
+push: commit
 	@echo "Pushing to branch: $(CURRENT_BRANCH)"
 	git push origin $(CURRENT_BRANCH)
 
-pull:
+pull: commit
 	@echo "Pulling from branch: $(CURRENT_BRANCH)"
 	git pull origin $(CURRENT_BRANCH)
 

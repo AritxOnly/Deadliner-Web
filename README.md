@@ -20,4 +20,5 @@
 - 清理：`make clean`
 - 推送镜像：`make push`
 - 拉取镜像：`make pull`
+- 快速提交更改：`make commit MSG="提交信息"`
 - 运行：`make run`

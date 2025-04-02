@@ -16,6 +16,7 @@ endif
 # 包含子模块配置
 include backend/nodejs-backend/build.mk
 include backend/python-ai-service/build.mk
+include frontend/build.mk
 
 CURRENT_BRANCH := $(shell git branch --show-current)
 
@@ -25,6 +26,8 @@ init: create-venv
 
 install: install-nodejs install-python
 clean: clean-nodejs clean-python
+
+run: run-flutter 
 
 push: commit
 	@echo "Pushing to branch: $(CURRENT_BRANCH)"
@@ -39,6 +42,6 @@ MSG := commit from Makefile at
 commit:
 	@echo "Committing changes to branch: $(CURRENT_BRANCH)"
 	git add .
-	git commit -am "$(MSG): $(DATE)"
+	git commit --allow-empty -am "$(MSG): $(DATE)"
 
 .PHONY: init install clean push

@@ -9,11 +9,17 @@
   "author": "AritxZhou",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0",
-    "sqlite3": "^5.1.7",
-    "sequelize": "^6.37.7",
-    "body-parser": "^2.2.0",
     "axios": "^1.8.4",
-    "jsonwebtoken": "^9.0.2"
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "hasown": "^2.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7",
+    "cors": "^2.8.5",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "debug": "^4.4.0"
   }
 }

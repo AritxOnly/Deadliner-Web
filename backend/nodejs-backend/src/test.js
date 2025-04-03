@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 
 const dbRoutes = require('./routes/dbRoutes'); // 数据库操作路由
+const authRoutes = require('./routes/authRoutes'); // 认证路由
 
 // 全局变量
 const LOG_LEVEL = 'dev';
@@ -19,6 +20,7 @@ app.use(morgan(LOG_LEVEL));
 app.use(bodyParser.json());
 
 app.use(API_DIR + '/db', dbRoutes);
+app.use(API_DIR + '/auth', authRoutes);
 
 // 处理未匹配的路由
 app.use((req, res, next) => {

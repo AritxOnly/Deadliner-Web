@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/homepage.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const DeadlinerApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DeadlinerApp extends StatelessWidget {
+  const DeadlinerApp({super.key});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Deadliner-Web',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -28,13 +29,14 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomePage(title: 'Flutter Demo Home Page'),  // 这里是窗口的标题
     );
   }
 }
 
+// 底下是示例代码
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 

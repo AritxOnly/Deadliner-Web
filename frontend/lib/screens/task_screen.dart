@@ -38,7 +38,7 @@ class _TaskScreenState extends State<TaskScreen> {
     webUtils = WebUtils();
 
     // 启动第二个线程尝试连接API服务器
-    Future<void> _initializeConnection() async {
+    Future<void> initializeConnection() async {
       try {
         final response = await webUtils.isWebAvailable();
         if (response) {
@@ -67,7 +67,7 @@ class _TaskScreenState extends State<TaskScreen> {
       }
     }
 
-    _initializeConnection();
+    initializeConnection();
   }
 
   void addTask(String title, String note, String timeText) {
@@ -95,42 +95,56 @@ class _TaskScreenState extends State<TaskScreen> {
     });
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    int crossAxisCount;
+
+    if (screenWidth >= 1200) {
+      crossAxisCount = 3;
+    } else if (screenWidth >= 800) {
+      crossAxisCount = 2;
+    } else {
+      crossAxisCount = 1;
+    }
+
     return Expanded(
       child: Stack(
         children: [
-          ListView.builder(
+          Padding(
             padding: const EdgeInsets.all(16),
-            itemCount: _taskData.length,
-            itemBuilder: (context, index) {
-              final task = _taskData[index];
-              return Column(
-                children: [
-                  DeadlineItem(
-                    title: task['title'],
-                    note: task['note'],
-                    remainingTime: task['remainingTime'],
-                    progress: task['progress'],
-                    onTap: () {
-                      TaskUtils.showEditDialog(
-                        context,
-                        initialTitle: task['title'],
-                        initialNote: task['note'],
-                        initialTime: task['remainingTime'],
-                        onConfirm: (newTitle, newNote, newTime) {
-                          updateTask(index, newTitle, newNote, newTime);
-                        },
-                        onDelete: () {
-                          deleteTask(index);
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              );
-            },
+            child: GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 3, // 控制任务卡片比例，宽高比为3:1
+              ),
+              itemCount: _taskData.length,
+              itemBuilder: (context, index) {
+                final task = _taskData[index];
+                return DeadlineItem(
+                  title: task['title'],
+                  note: task['note'],
+                  remainingTime: task['remainingTime'],
+                  progress: task['progress'],
+                  onTap: () {
+                    TaskUtils.showEditDialog(
+                      context,
+                      initialTitle: task['title'],
+                      initialNote: task['note'],
+                      initialTime: task['remainingTime'],
+                      onConfirm: (newTitle, newNote, newTime) {
+                        updateTask(index, newTitle, newNote, newTime);
+                      },
+                      onDelete: () {
+                        deleteTask(index);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
           ),
           Positioned(
             right: 16,
@@ -169,18 +183,22 @@ class DeadlineItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Card(
-        elevation: 3,
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
+        elevation: 0, // 去掉阴影
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), // 加大 margin
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24), // 圆角更大
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Container(
           padding: const EdgeInsets.all(16),
+          height: 110,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildTitleRow(context),
+              const SizedBox(height: 6),
+              Expanded(child: _buildNoteRow(context)),
               const SizedBox(height: 8),
-              _buildNoteRow(context),
-              const SizedBox(height: 12),
               _buildProgressBar(context),
             ],
           ),
@@ -191,9 +209,6 @@ class DeadlineItem extends StatelessWidget {
 
   Widget _buildTitleRow(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
       children: [
         Expanded(
           child: Text(
@@ -218,35 +233,33 @@ class DeadlineItem extends StatelessWidget {
   }
 
   Widget _buildNoteRow(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            note,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        note,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.secondary,
         ),
-      ],
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 
   Widget _buildProgressBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: LinearProgressIndicator(
         value: progress,
-        minHeight: 8,
+        minHeight: 6,
         borderRadius: BorderRadius.circular(6),
         color: Theme.of(context).colorScheme.primary,
-        backgroundColor: Theme.of(context).colorScheme.background,
+        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
       ),
     );
   }
 }
+
 
 class TaskUtils {
   static void onFABPressed(
@@ -296,8 +309,9 @@ class TaskUtils {
         return StatefulBuilder(
           builder: (context, setState) {
             String formattedDateTime() {
-              if (selectedDate == null && selectedTime == null)
+              if (selectedDate == null && selectedTime == null) {
                 return initialTime;
+              }
               final date =
                   selectedDate != null
                       ? "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}"

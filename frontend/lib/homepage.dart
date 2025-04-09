@@ -41,6 +41,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDesktopLayout() {
+    var count = 0;
     return Scaffold(
       key: _scaffoldKey,
       body: SafeArea(
@@ -59,11 +60,7 @@ class _HomePageState extends State<HomePage> {
               onDestinationSelected: _handleScreenChanged,
             ),
             const VerticalDivider(thickness: 1, width: 1),
-            Expanded(
-              child: Center(
-                child: Text('当前页面: ${destinations[screenIndex].label}'),
-              ),
-            ),
+            
           ],
         ),
       ),

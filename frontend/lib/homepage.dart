@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/task_screen.dart';
 
 class ExampleDestination {
   const ExampleDestination(this.label, this.icon, this.selectedIcon);
@@ -60,7 +61,7 @@ class _HomePageState extends State<HomePage> {
               onDestinationSelected: _handleScreenChanged,
             ),
             const VerticalDivider(thickness: 1, width: 1),
-            
+            TaskScreen()
           ],
         ),
       ),

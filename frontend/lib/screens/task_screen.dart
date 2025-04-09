@@ -11,8 +11,7 @@ class TaskScreen extends StatefulWidget {
 class _TaskScreenState extends State<TaskScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Expanded(
+    return Expanded(
         child: Stack(
           children: [
             Center(child: Text('Task Screen')),
@@ -28,7 +27,6 @@ class _TaskScreenState extends State<TaskScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

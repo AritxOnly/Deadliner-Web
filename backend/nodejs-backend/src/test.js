@@ -21,6 +21,9 @@ app.use(bodyParser.json());
 
 app.use(API_DIR + '/db', dbRoutes);
 app.use(API_DIR + '/auth', authRoutes);
+app.use(API_DIR, express.Router().get('/', (req, res) => {
+    res.json({ message: 'Welcome to the API!' });
+}));
 
 // 处理未匹配的路由
 app.use((req, res, next) => {

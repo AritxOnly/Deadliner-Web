@@ -48,20 +48,29 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: Row(
           children: [
-            NavigationRail(
-              minWidth: 56,
-              destinations: destinations.map((d) {
-                return NavigationRailDestination(
-                  label: Text(d.label),
-                  icon: d.icon,
-                  selectedIcon: d.selectedIcon,
-                );
-              }).toList(),
-              selectedIndex: screenIndex,
-              onDestinationSelected: _handleScreenChanged,
+            NavigationDrawer(
+              elevation: 1,
+              surfaceTintColor: Theme.of(context).colorScheme.surface,
+              children: [
+                NavigationDrawerDestination(
+                  label: const Text('Deadliner'),
+                  icon: const SizedBox.shrink(),
+                  selectedIcon: const Icon(Icons.dashboard),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 28),
+                  child: Divider(),
+                ),
+                ...destinations.map((d) {
+                  return NavigationDrawerDestination(
+                    label: Text(d.label),
+                    icon: d.icon,
+                    selectedIcon: d.selectedIcon,
+                  );
+                }),
+              ],
             ),
-            const VerticalDivider(thickness: 1, width: 1),
-            TaskScreen()
+            TaskScreen(),
           ],
         ),
       ),
@@ -71,7 +80,10 @@ class _HomePageState extends State<HomePage> {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(28, 16, 16, 10),
-            child: Text('Deadliner', style: Theme.of(context).textTheme.headlineMedium),
+            child: Text(
+              'Deadliner',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
           ),
           ...destinations.map((ExampleDestination destination) {
             return NavigationDrawerDestination(
@@ -80,7 +92,10 @@ class _HomePageState extends State<HomePage> {
               selectedIcon: destination.selectedIcon,
             );
           }),
-          const Padding(padding: EdgeInsets.fromLTRB(28, 16, 28, 10), child: Divider()),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(28, 16, 28, 10),
+            child: Divider(),
+          ),
         ],
       ),
     );
@@ -109,19 +124,18 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      body: Center(
-        child: Text('当前页面: ${destinations[screenIndex].label}'),
-      ),
+      body: Center(child: Text('当前页面: ${destinations[screenIndex].label}')),
       bottomNavigationBar: NavigationBar(
         selectedIndex: screenIndex,
         onDestinationSelected: _handleScreenChanged,
-        destinations: destinations.map((d) {
-          return NavigationDestination(
-            icon: d.icon,
-            selectedIcon: d.selectedIcon,
-            label: d.label,
-          );
-        }).toList(),
+        destinations:
+            destinations.map((d) {
+              return NavigationDestination(
+                icon: d.icon,
+                selectedIcon: d.selectedIcon,
+                label: d.label,
+              );
+            }).toList(),
       ),
     );
   }

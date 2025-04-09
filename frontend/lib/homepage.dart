@@ -60,26 +60,7 @@ class _HomePageState extends State<HomePage> {
               onDestinationSelected: _handleScreenChanged,
             ),
             const VerticalDivider(thickness: 1, width: 1),
-            Expanded(
-              child: Stack(
-                children: [
-                  Center(
-                    child: Text('当前页面: ${destinations[screenIndex].label}'),
-                  ),
-                  Positioned(
-                    right: 16,
-                    bottom: 16,
-                    child: FloatingActionButton(
-                      onPressed: () {
-                        // 添加按钮点击处理逻辑
-                        print('创建新任务');
-                      },
-                      child: const Icon(Icons.add),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            
           ],
         ),
       ),

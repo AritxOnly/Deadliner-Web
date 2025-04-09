@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/screens/homepage.dart';
+import 'package:frontend/homepage.dart';
 
 void main() {
   runApp(const DeadlinerApp());

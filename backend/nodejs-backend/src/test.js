@@ -6,6 +6,7 @@ const cors = require('cors');
 
 const dbRoutes = require('./routes/dbRoutes'); // 数据库操作路由
 const authRoutes = require('./routes/authRoutes'); // 认证路由
+const aiRoutes = require('./routes/aiRoutes'); // AI 相关路由
 
 // 全局变量
 const LOG_LEVEL = 'dev';
@@ -21,6 +22,7 @@ app.use(bodyParser.json());
 
 app.use(API_DIR + '/db', dbRoutes);
 app.use(API_DIR + '/auth', authRoutes);
+app.use(API_DIR + '/ai', aiRoutes);
 app.use(API_DIR, express.Router().get('/', (req, res) => {
     res.json({ message: 'Welcome to the API!' });
 }));

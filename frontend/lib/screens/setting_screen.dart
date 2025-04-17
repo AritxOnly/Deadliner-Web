@@ -1,25 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/utils/setting_utils.dart';
-import 'package:frontend/utils/web_utils.dart';
-import 'package:http/http.dart';
-
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '设置',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: MediaQuery.of(context).platformBrightness,
-        ),
-      ),
-      home: SettingsPage(),
-    );
-  }
-}
+import 'package:provider/provider.dart';
 
 class SettingsModel extends ChangeNotifier {
   bool _vibration = true;
@@ -41,25 +22,31 @@ class SettingsModel extends ChangeNotifier {
   }
 
   Future<void> _saveToPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('vibration', _vibration);
-    await prefs.setInt('archiveDays', _archiveDays);
+    await SettingUtils.saveBoolSetting(SettingKeys.vibration, _vibration);
+    await SettingUtils.saveIntSetting(SettingKeys.archiveDays, _archiveDays);
   }
 
   Future<void> loadPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    _vibration = prefs.getBool('vibration') ?? true;
-    _archiveDays = prefs.getInt('archiveDays') ?? 7;
+    _vibration = await SettingUtils.getBoolSetting(
+      SettingKeys.vibration,
+      defaultValue: true,
+    );
+    _archiveDays = await SettingUtils.getIntSetting(
+      SettingKeys.archiveDays,
+      defaultValue: 7,
+    );
     notifyListeners();
   }
 }
 
-class SettingsPage extends StatefulWidget {
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
   @override
-  _SettingsPageState createState() => _SettingsPageState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsScreenState extends State<SettingsScreen> {
   final List<int> _archiveOptions = [1, 3, 7];
 
   @override
@@ -108,16 +95,22 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           SizedBox(height: 8),
           ToggleButtons(
-            isSelected: _archiveOptions.map((e) => e == model.archiveDays).toList(),
+            isSelected:
+                _archiveOptions.map((e) => e == model.archiveDays).toList(),
             onPressed: (index) => model.setArchiveDays(_archiveOptions[index]),
-            children: _archiveOptions.map((days) => Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text('${days}天'),
-            )).toList(),
             constraints: BoxConstraints(minHeight: 36),
             borderColor: Theme.of(context).colorScheme.outline,
             selectedBorderColor: Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(8),
+            children:
+                _archiveOptions
+                    .map(
+                      (days) => Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('$days天'),
+                      ),
+                    )
+                    .toList(),
           ),
         ],
       ),
@@ -146,7 +139,11 @@ class _SettingsPageState extends State<SettingsPage> {
               margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
                 children: [
-                  _buildSwitchTile('振动反馈', model.vibration, model.toggleVibration),
+                  _buildSwitchTile(
+                    '振动反馈',
+                    model.vibration,
+                    model.toggleVibration,
+                  ),
                   _buildSwitchTile('进度方向', true, (_) {}),
                   _buildSwitchTile('进度组件', true, (_) {}),
                   _buildSwitchTile('励志语录', true, (_) {}),
@@ -162,8 +159,16 @@ class _SettingsPageState extends State<SettingsPage> {
               margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: Theme.of(context).colorScheme.errorContainer,
               child: ListTile(
-                leading: Icon(Icons.warning, color: Theme.of(context).colorScheme.onErrorContainer),
-                title: Text('通知功能开发中', style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+                leading: Icon(
+                  Icons.warning,
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+                title: Text(
+                  '通知功能开发中',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
               ),
             ),
 
@@ -196,8 +201,16 @@ class _SettingsPageState extends State<SettingsPage> {
               margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: Theme.of(context).colorScheme.secondaryContainer,
               child: ListTile(
-                leading: Icon(Icons.info, color: Theme.of(context).colorScheme.onSecondaryContainer),
-                title: Text('版本号 1.0.0', style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer)),
+                leading: Icon(
+                  Icons.info,
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+                title: Text(
+                  '版本号 1.0.0',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                  ),
+                ),
               ),
             ),
           ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/task_screen.dart';
+import 'package:frontend/screens/habit_screen.dart';
 
 class ExampleDestination {
   const ExampleDestination(this.label, this.icon, this.selectedIcon);
@@ -70,7 +71,7 @@ class _HomePageState extends State<HomePage> {
                 }),
               ],
             ),
-            TaskScreen(),
+            HabitScreen(),
           ],
         ),
       ),

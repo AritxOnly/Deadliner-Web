@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const AuthService = require('../services/authService');
+const UserService = require('../services/userService');
 
-const authService = new AuthService();
+const userService = new UserService();
 
 // 用户注册
 router.post('/register', async (req, res) => {
@@ -13,8 +13,8 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ error: 'Missing username or password' });
         }
         
-        const userId = await authService.register(username, password);
-        const token = authService.generateToken({ id: userId, username });
+        const userId = await userService.register(username, password);
+        const token = userService.generateToken({ id: userId, username });
         res.json({ token });
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -29,7 +29,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Missing username or password' });
         }
 
-        const token = await authService.login(username, password);
+        const token = await userService.login(username, password);
         console.log(`User ${username} logged in with token ${token}`);
         res.json({ token });
     } catch (err) {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/utils/task_utils.dart';
 import 'package:frontend/utils/web_utils.dart';
 import 'package:http/http.dart';
 
@@ -13,7 +12,6 @@ class HabitScreen extends StatefulWidget {
 class _HabitScreenState extends State<HabitScreen> {
   final List<Map<String, dynamic>> _habitData = [];
   late WebUtils webUtils;
-
 
   void exampleInit() {
     _habitData.addAll([
@@ -151,7 +149,6 @@ class HabitItem extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         child: Container(
           padding: const EdgeInsets.all(16),
-          height: 110,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

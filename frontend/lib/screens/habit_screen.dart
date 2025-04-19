@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/utils/web_utils.dart';
-import 'package:http/http.dart';
 
 class HabitScreen extends StatefulWidget {
   const HabitScreen({super.key});
@@ -10,112 +8,63 @@ class HabitScreen extends StatefulWidget {
 }
 
 class _HabitScreenState extends State<HabitScreen> {
-  final List<Map<String, dynamic>> _habitData = [];
-  late WebUtils webUtils;
+  final List<Map<String, dynamic>> _habitData = [
+    {
+      'title': '喝水',
+      'streak': '7天连击',
+      'frequency': '每天一次 · 持续30天',
+      'progress': 0,
+      'dailyChecks': [true, true, true, true, true, true, true],
+    },
+    {
+      'title': '校园跑',
+      'streak': '3天连击',
+      'frequency': '共计16次 · 剩余30天',
+      'progress': 0.4,
+      'dailyChecks': [true, true, true, false, false, false, false],
+    },
+  ];
 
-  void exampleInit() {
-    _habitData.addAll([
-      {'title': '晨跑', 'note': '每天跑3公里', 'count': 5},
-      {'title': '读书', 'note': '每日阅读30分钟', 'count': 12},
-    ]);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    exampleInit();
-  }
-
-  void addHabit(String title, String note) {
+  void _handleCheck(int index) {
     setState(() {
-      _habitData.add({
-        'title': title,
-        'note': note,
-        'count': 0,
-      });
-    });
-  }
+      final checks = _habitData[index]['dailyChecks'] as List<bool>;
+      final firstFalse = checks.indexWhere((element) => !element);
+      if (firstFalse != -1) {
+        checks[firstFalse] = true;
+      }
 
-  void updateHabit(int index, String title, String note) {
-    setState(() {
-      _habitData[index]['title'] = title;
-      _habitData[index]['note'] = note;
-    });
-  }
+      // Update the progress and streak
+      final completedDays = checks.where((e) => e).length;
+      _habitData[index]['progress'] = completedDays / checks.length;
 
-  void deleteHabit(int index) {
-    setState(() {
-      _habitData.removeAt(index);
-    });
-  }
-
-  void incrementCount(int index) {
-    setState(() {
-      _habitData[index]['count'] += 1;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    int crossAxisCount;
-
-    if (screenWidth >= 1200) {
-      crossAxisCount = 3;
-    } else if (screenWidth >= 800) {
-      crossAxisCount = 2;
-    } else {
-      crossAxisCount = 1;
-    }
+    int crossAxisCount = screenWidth >= 1200 ? 3 : screenWidth >= 800 ? 2 : 1;
 
     return Expanded(
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: GridView.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 3,
-              ),
-              itemCount: _habitData.length,
-              itemBuilder: (context, index) {
-                final habit = _habitData[index];
-                return HabitItem(
-                  title: habit['title'],
-                  note: habit['note'],
-                  count: habit['count'],
-                  onTap: () {
-                    HabitUtils.showEditDialog(
-                      context,
-                      initialTitle: habit['title'],
-                      initialNote: habit['note'],
-                      onConfirm: (newTitle, newNote) {
-                        updateHabit(index, newTitle, newNote);
-                      },
-                      onDelete: () {
-                        deleteHabit(index);
-                      },
-                    );
-                  },
-                  onCheckIn: () => incrementCount(index),
-                );
-              },
-            ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 2.5, // Adjusted child aspect ratio
           ),
-          Positioned(
-            right: 16,
-            bottom: 16,
-            child: FloatingActionButton(
-              onPressed: () {
-                HabitUtils.onFABPressed(context, onHabitAdd: addHabit);
-              },
-              child: const Icon(Icons.add),
-            ),
+          itemCount: _habitData.length,
+          itemBuilder: (context, index) => HabitItem(
+            title: _habitData[index]['title'],
+            streak: _habitData[index]['streak'],
+            frequency: _habitData[index]['frequency'],
+            progress: _habitData[index]['progress'],
+            dailyChecks: _habitData[index]['dailyChecks'],
+            onCheckPressed: () => _handleCheck(index),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -123,167 +72,137 @@ class _HabitScreenState extends State<HabitScreen> {
 
 class HabitItem extends StatelessWidget {
   final String title;
-  final String note;
-  final int count;
-  final VoidCallback? onTap;
-  final VoidCallback onCheckIn;
+  final String streak;
+  final String frequency;
+  final double progress;
+  final List<bool> dailyChecks;
+  final VoidCallback onCheckPressed;
 
   const HabitItem({
     super.key,
     required this.title,
-    this.note = '',
-    required this.count,
-    this.onTap,
-    required this.onCheckIn,
+    required this.streak,
+    required this.frequency,
+    required this.progress,
+    required this.dailyChecks,
+    required this.onCheckPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        height: 2000, // Increased card height
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeaderRow(context),
+            const SizedBox(height: 4),
+            _buildStreakRow(context),
+            const SizedBox(height: 4),
+            _buildFrequencyRow(context),
+            const SizedBox(height: 4),
+            _buildDailyDots(context),
+            const SizedBox(height: 6),
+            _buildMainProgress(context),
+          ],
         ),
-        clipBehavior: Clip.hardEdge,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '已打卡 $count 次',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: Text(
-                  note,
-                  style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildHeaderRow(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: onCheckIn,
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('打卡'),
-                ),
-              ),
-            ],
+          ),
+        ),
+        ElevatedButton.icon(
+          onPressed: onCheckPressed,
+          icon: Icon(Icons.check_circle, size: 16),
+          label: Text(
+            dailyChecks.contains(false) ? '打卡' : '今日已打卡',
+            style: TextStyle(fontSize: 10),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStreakRow(BuildContext context) {
+    return Text(
+      streak,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.primary,
+        fontWeight: FontWeight.bold,
+        fontSize: 12,
+      ),
+    );
+  }
+
+  Widget _buildFrequencyRow(BuildContext context) {
+    return Text(
+      frequency,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        fontSize: 12,
+      ),
+    );
+  }
+
+  Widget _buildDailyDots(BuildContext context) {
+    return SizedBox(
+      height: 12,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: dailyChecks.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) => Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: dailyChecks[index]
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: dailyChecks[index]
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
+              width: 2,
+            ),
           ),
         ),
       ),
     );
   }
-}
 
-class HabitUtils {
-  static void onFABPressed(
-    BuildContext context, {
-    required void Function(String title, String note) onHabitAdd,
-  }) {
-    _showHabitDialog(context, onConfirm: onHabitAdd);
-  }
 
-  static void showEditDialog(
-    BuildContext context, {
-    required String initialTitle,
-    required String initialNote,
-    required void Function(String title, String note) onConfirm,
-    required VoidCallback onDelete,
-  }) {
-    _showHabitDialog(
-      context,
-      initialTitle: initialTitle,
-      initialNote: initialNote,
-      onConfirm: onConfirm,
-      onDelete: onDelete,
-    );
-  }
-
-  static void _showHabitDialog(
-    BuildContext context, {
-    String initialTitle = '',
-    String initialNote = '',
-    required void Function(String title, String note) onConfirm,
-    VoidCallback? onDelete,
-  }) {
-    final titleController = TextEditingController(text: initialTitle);
-    final noteController = TextEditingController(text: initialNote);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(onDelete == null ? '添加习惯' : '编辑习惯'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: '习惯名称',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteController,
-                  decoration: InputDecoration(
-                    labelText: '备注',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            if (onDelete != null)
-              TextButton(onPressed: onDelete, child: const Text('删除')),
-            ElevatedButton(
-              onPressed: () {
-                onConfirm(
-                  titleController.text,
-                  noteController.text,
-                );
-                Navigator.of(context).pop();
-              },
-              child: const Text('确认'),
-            ),
-          ],
-        );
-      },
+  Widget _buildMainProgress(BuildContext context) {
+    return LinearProgressIndicator(
+      value: progress,
+      minHeight: 4,
+      borderRadius: BorderRadius.circular(6),
+      color: Theme.of(context).colorScheme.primary,
+      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
     );
   }
 }

@@ -45,6 +45,7 @@ class _UsersPageState extends State<UsersPage> {
   // 登录处理
   void _handleLogin() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      Navigator.pop(context, true);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('用户名和密码不能为空')));
@@ -95,6 +96,7 @@ class _UsersPageState extends State<UsersPage> {
   // 注册处理
   void _handleRegister() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      Navigator.pop(context, true);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('所有字段都不能为空')));
@@ -289,14 +291,14 @@ class _UsersPageState extends State<UsersPage> {
           const SizedBox(height: 24),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.history),
+            leading: const Icon(Icons.history_outlined),
             title: const Text('任务历史'),
             onTap: () {
               // TODO: 导航到任务历史页面
             },
           ),
           ListTile(
-            leading: const Icon(Icons.settings),
+            leading: const Icon(Icons.settings_outlined),
             title: const Text('账户设置'),
             onTap: () {
               // TODO: 导航到账户设置页面

@@ -4,12 +4,20 @@ import 'dart:core';
 import 'package:frontend/models/ddl_item.dart';
 import 'package:frontend/models/deadline_type.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WebUtils {
+  static const _prefsKeyToken = 'auth_token';
+
   // 单例模式
   static final WebUtils _instance = WebUtils._internal(http.Client());
   factory WebUtils() => _instance;
-  WebUtils._internal(this.client);
+  WebUtils._internal(this.client) {
+    _loadTokenFromPrefs();
+  }
+
+  final http.Client client;
+  String? _authToken;
 
   final String baseDomain = 'localhost';
   final String basePort = '3000';
@@ -21,9 +29,6 @@ class WebUtils {
   String get registerUrl => '$baseUrl/auth/register';
   String get loginUrl => '$baseUrl/auth/login';
 
-  final http.Client client;
-  String? _authToken;
-
   /// 获取认证头
   Map<String, String> get _headers {
     final headers = {'Content-Type': 'application/json'};
@@ -31,6 +36,25 @@ class WebUtils {
       headers['Authorization'] = 'Bearer $_authToken';
     }
     return headers;
+  }
+
+  bool isLoggedIn() => _authToken != null;
+
+  Future<void> _loadTokenFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    _authToken = prefs.getString(_prefsKeyToken);
+  }
+
+  Future<void> _saveTokenToPrefs(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKeyToken, token);
+    _authToken = token;
+  }
+
+  Future<void> _clearTokenFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKeyToken);
+    _authToken = null;
   }
 
   /// 检查网络是否可用
@@ -59,7 +83,7 @@ class WebUtils {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        _authToken = data['token'];
+        await _saveTokenToPrefs(data['token']);
         return true;
       } else {
         return false;
@@ -83,7 +107,7 @@ class WebUtils {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        _authToken = data['token'];
+        await _saveTokenToPrefs(data['token']);
         return true;
       } else {
         return false;
@@ -95,12 +119,7 @@ class WebUtils {
 
   /// 登出
   void logout() {
-    _authToken = null;
-  }
-
-  /// 检查是否已登录
-  bool isLoggedIn() {
-    return _authToken != null;
+    _clearTokenFromPrefs();
   }
 
   /// 拉取所有的DDL

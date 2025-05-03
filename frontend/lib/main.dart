@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/homepage.dart';
 import 'package:frontend/utils/auth_utils.dart';
+import 'package:frontend/screens/users_page.dart';
 
 void main() {
   runApp(const DeadlinerApp());
@@ -48,15 +49,29 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // 延迟执行，确保构建完成
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 检查登录状态并在需要时显示登录页面
-      AuthUtils().checkAndShowLoginOnStartup(context);
-    });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _checkLoginAndMaybeShow(),
+    );
+  }
+
+  Future<void> _checkLoginAndMaybeShow() async {
+    final already = await AuthUtils().checkLoginStatus();
+    if (!already) {
+      // 强制跳转 UsersPage，并等待它 pop 回来
+      final didLogin = await Navigator.of(
+        context,
+      ).push<bool>(MaterialPageRoute(builder: (_) => const UsersPage()));
+      // 如果登录成功（UsersPage pop 了 true），就刷新自己
+      if (didLogin == true && mounted) {
+        setState(() {
+          /* nothing special, 只是 rebuild HomePage */
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return const HomePage(title: 'Deadliner'); // 更新窗口标题
+    return const HomePage(title: 'Deadliner');
   }
 }

@@ -46,6 +46,9 @@ class _HomePageState extends State<HomePage> {
   late bool showNavigationDrawer;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // 控制导航抽屉是否展开的状态
+  bool _isDrawerExpanded = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();

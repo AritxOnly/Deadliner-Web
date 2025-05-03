@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/utils/global_utils.dart';
+import 'package:frontend/utils/web_utils.dart';
+import 'package:frontend/models/ddl_item.dart';
+import 'dart:core';
 
 class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
@@ -59,11 +63,18 @@ class _OverviewScreenState extends State<OverviewScreen> {
       timeSlots.updateAll((_, __) => 0);
 
       for (var item in items) {
+        final now = DateTime.now();
+        final startTime = GlobalUtils.safeParseDateTime(item.startTime);
+        final endTime = GlobalUtils.safeParseDateTime(item.endTime);
+        final progress =
+            endTime.difference(now).inSeconds /
+            endTime.difference(startTime).inSeconds;
+
         final task = {
           'title': item.name,
           'note': item.note,
           'endTime': item.endTime,
-          'progress': item.progress,
+          'progress': progress,
         };
         _taskData.add(task);
         _countTaskStatus(task);
@@ -326,24 +337,4 @@ class _PieChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// 假设的数据模型和网络工具类
-class DDLItem {
-  final String name;
-  final String note;
-  final String endTime;
-  final double progress;
-
-  DDLItem({
-    required this.name,
-    required this.note,
-    required this.endTime,
-    required this.progress,
-  });
-}
-
-class WebUtils {
-  Future<bool> isWebAvailable() async => true;
-  Future<List<DDLItem>> getAllDDLs() async => [];
 }

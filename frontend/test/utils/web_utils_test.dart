@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/ddl_item.dart';
 import 'package:frontend/models/deadline_type.dart';
 import 'package:frontend/utils/web_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   late WebUtils webUtils;
@@ -9,7 +10,12 @@ void main() {
   final testUsername = 'testuser_${DateTime.now().millisecondsSinceEpoch}';
   final testPassword = 'password123';
 
-  setUp(() {
+  // 确保 Flutter 插件系统初始化
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // 给 shared_preferences 注入一个空的内存实现
+  SharedPreferences.setMockInitialValues(<String, Object>{});
+
+  setUp(() async {
     webUtils = WebUtils();
   });
 

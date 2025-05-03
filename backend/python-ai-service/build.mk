@@ -25,3 +25,7 @@ clean-python:
 	@echo "[$(DETECTED_OS)] Cleaning Python environment..."
 	$(RM) "$(PYTHON_PATH)/$(VENV_NAME)"
 	$(RM) "$(PYTHON_PATH)/__pycache__"
+
+run-python:
+	@echo "[$(DETECTED_OS)] Running Python service..."
+	$(PYTHON_EXE) -m app.main

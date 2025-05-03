@@ -27,8 +27,6 @@ init: create-venv
 install: install-nodejs install-python
 clean: clean-nodejs clean-python
 
-run: run-flutter start-nodejs 
-
 push: commit
 	@echo "Pushing to branch: $(CURRENT_BRANCH)"
 	git push origin $(CURRENT_BRANCH)

@@ -4,7 +4,7 @@ const router = express.Router();
 const DBService = require('../services/dbService');
 const DDLItem = require('../models/DDLItem');
 
-dbService = new DBService();
+const dbService = new DBService();
 
 router.get('/items', (req, res) => {
     dbService.getAllDDLs().then((items) => {

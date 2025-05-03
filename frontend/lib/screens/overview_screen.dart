@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart'; 
+import 'package:flutter/material.dart';
 
 class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
@@ -43,9 +43,9 @@ class _OverviewScreenState extends State<OverviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('无法连接到服务器: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('无法连接到服务器: $e')));
       }
     }
   }
@@ -75,7 +75,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
   void _countTaskStatus(Map<String, dynamic> task) {
     final endTime = DateTime.parse(task['endTime']);
     final now = DateTime.now();
-    
+
     if (task['progress'] >= 1.0) {
       completedCount++;
     } else if (endTime.isBefore(now)) {
@@ -109,28 +109,27 @@ class _OverviewScreenState extends State<OverviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildTaskStatusCard(),
-            const SizedBox(width: 40),
-            _buildTimeSlotCard(),
-          ],
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildTaskStatusCard(),
+              const SizedBox(width: 40),
+              _buildTimeSlotCard(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-
   Widget _buildTaskStatusCard() {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -169,9 +168,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
 
   Widget _buildTimeSlotCard() {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -197,14 +194,15 @@ class _OverviewScreenState extends State<OverviewScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: timeSlots.entries.map((entry) {
-          return _buildTimeBar(
-            label: entry.key,
-            value: entry.value,
-            height: maxCount > 0 ? (entry.value / maxCount) * 150 : 0,
-            color: _getTimeSlotColor(entry.key),
-          );
-        }).toList(),
+        children:
+            timeSlots.entries.map((entry) {
+              return _buildTimeBar(
+                label: entry.key,
+                value: entry.value,
+                height: maxCount > 0 ? (entry.value / maxCount) * 150 : 0,
+                color: _getTimeSlotColor(entry.key),
+              );
+            }).toList(),
       ),
     );
   }
@@ -223,9 +221,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
           height: height,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(4),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
           child: Center(
             child: Text(
@@ -239,10 +235,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
@@ -309,11 +302,18 @@ class _PieChartPainter extends CustomPainter {
     _drawArc(canvas, center, radius, startAngle, overdue, Colors.red);
   }
 
-  void _drawArc(Canvas canvas, Offset center, double radius, double startAngle,
-      double sweep, Color color) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
+  void _drawArc(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    double startAngle,
+    double sweep,
+    Color color,
+  ) {
+    final paint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
 
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
@@ -347,5 +347,3 @@ class WebUtils {
   Future<bool> isWebAvailable() async => true;
   Future<List<DDLItem>> getAllDDLs() async => [];
 }
-
-

@@ -2,19 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:frontend/screens/task_screen.dart';
 import 'package:frontend/screens/habit_screen.dart';
 import 'package:frontend/screens/overview_screen.dart';
+import 'package:frontend/screens/users_page.dart';
 
-class ExampleDestination {
-  const ExampleDestination(this.label, this.icon, this.selectedIcon);
+class HomepageDestination {
+  const HomepageDestination(this.label, this.icon, this.selectedIcon);
 
   final String label;
   final Widget icon;
   final Widget selectedIcon;
 }
 
-const List<ExampleDestination> destinations = <ExampleDestination>[
-  ExampleDestination('任务', Icon(Icons.task_outlined), Icon(Icons.task)),
-  ExampleDestination('习惯', Icon(Icons.repeat_outlined), Icon(Icons.repeat)),
-  ExampleDestination('设置', Icon(Icons.settings_outlined), Icon(Icons.settings)),
+const List<HomepageDestination> destinations = <HomepageDestination>[
+  HomepageDestination('任务', Icon(Icons.task_outlined), Icon(Icons.task)),
+  HomepageDestination('习惯', Icon(Icons.repeat_outlined), Icon(Icons.repeat)),
+  HomepageDestination(
+    '概览',
+    Icon(Icons.pie_chart_outline),
+    Icon(Icons.pie_chart),
+  ),
+  HomepageDestination(
+    'AI规划',
+    Icon(Icons.rocket_launch_outlined),
+    Icon(Icons.rocket_launch),
+  ),
+  HomepageDestination(
+    '设置',
+    Icon(Icons.settings_outlined),
+    Icon(Icons.settings),
+  ),
 ];
 
 class HomePage extends StatefulWidget {
@@ -43,8 +58,62 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // 根据当前选中的屏幕获取标题
+  String _getScreenTitle() {
+    return destinations[screenIndex].label;
+  }
+
+  // 构建操作按钮
+  List<Widget> _buildActions() {
+    // 只在任务和习惯页面显示工具栏图标（screenIndex为0或1）
+    if (screenIndex == 0 || screenIndex == 1) {
+      return [
+        IconButton(
+          icon: const Icon(Icons.account_circle_outlined),
+          tooltip: '用户',
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (context) => const UsersPage()));
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.search_outlined),
+          tooltip: '搜索',
+          onPressed: () {
+            // TODO: 实现搜索功能
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outlined),
+          tooltip: '删除',
+          onPressed: () {
+            // TODO: 实现删除功能
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.more_vert_outlined),
+          tooltip: '更多',
+          onPressed: () {
+            // TODO: 实现更多功能
+          },
+        ),
+      ];
+    } else {
+      // 在概览页面不显示工具栏图标
+      return [
+        IconButton(
+          icon: const Icon(Icons.more_vert_outlined),
+          tooltip: '更多',
+          onPressed: () {
+            // TODO: 实现更多功能
+          },
+        ),
+      ];
+    }
+  }
+
   Widget _buildDesktopLayout() {
-    var count = 0;
     return Scaffold(
       key: _scaffoldKey,
       body: SafeArea(
@@ -53,16 +122,43 @@ class _HomePageState extends State<HomePage> {
             NavigationDrawer(
               elevation: 1,
               surfaceTintColor: Theme.of(context).colorScheme.surface,
+              onDestinationSelected: _handleScreenChanged,
+              selectedIndex: screenIndex,
               children: [
-                NavigationDrawerDestination(
-                  label: const Text('Deadliner'),
-                  icon: const SizedBox.shrink(),
-                  selectedIcon: const Icon(Icons.dashboard),
+                // 自定义App Logo展示区，不可点击
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(24.0),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12.0,
+                      horizontal: 16.0,
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12.0),
+                          child: Image.asset(
+                            'assets/ic_launcher.png',
+                            width: 40.0,
+                            height: 40.0,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(width: 12.0),
+                        Text(
+                          'Deadliner',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 28),
-                  child: Divider(),
-                ),
+                const Padding(padding: EdgeInsets.symmetric(horizontal: 28)),
                 ...destinations.map((d) {
                   return NavigationDrawerDestination(
                     label: Text(d.label),
@@ -72,7 +168,19 @@ class _HomePageState extends State<HomePage> {
                 }),
               ],
             ),
-            TaskScreen(),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppBar(
+                    title: Text(_getScreenTitle()),
+                    actions: _buildActions(),
+                    centerTitle: false,
+                  ),
+                  Expanded(child: _buildCurrentScreen()),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -87,7 +195,7 @@ class _HomePageState extends State<HomePage> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
           ),
-          ...destinations.map((ExampleDestination destination) {
+          ...destinations.map((HomepageDestination destination) {
             return NavigationDrawerDestination(
               label: Text(destination.label),
               icon: destination.icon,
@@ -105,6 +213,20 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildMobileLayout() {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(_getScreenTitle()),
+        actions: _buildActions(),
+        centerTitle: false,
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              ),
+        ),
+      ),
       drawer: Drawer(
         child: Column(
           children: [
@@ -126,7 +248,7 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      body: Center(child: Text('当前页面: ${destinations[screenIndex].label}')),
+      body: _buildCurrentScreen(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: screenIndex,
         onDestinationSelected: _handleScreenChanged,
@@ -140,6 +262,21 @@ class _HomePageState extends State<HomePage> {
             }).toList(),
       ),
     );
+  }
+
+  Widget _buildCurrentScreen() {
+    switch (screenIndex) {
+      case 0:
+        return const TaskScreen();
+      case 1:
+        return const HabitScreen();
+      case 2:
+        return const OverviewScreen();
+      // case 3:
+      //   return const SettingsScreen();
+      default:
+        return const TaskScreen();
+    }
   }
 
   @override

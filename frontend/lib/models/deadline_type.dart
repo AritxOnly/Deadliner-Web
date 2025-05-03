@@ -5,6 +5,7 @@ enum DeadlineType {
   HABIT;
 
   static DeadlineType fromString(String str) {
+    str = str.toLowerCase();
     if (str == 'task') {
       return DeadlineType.TASK;
     } else if (str == 'habit') {
@@ -12,5 +13,10 @@ enum DeadlineType {
     } else {
       throw Exception('Invalid DeadlineType string: $str');
     }
+  }
+
+  @override
+  String toString() {
+    return name.toLowerCase();
   }
 }

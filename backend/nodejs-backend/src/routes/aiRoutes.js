@@ -11,7 +11,7 @@ const aiService = new AIService();
 router.get('/plan/:id', async (req, res) => {
     try {
         const id = req.params.id;
-        // 使用 await 等待异步操作完成
+        
         const ddlItem = await dbService.getDDLById(id);
         
         if (!ddlItem) {
@@ -29,6 +29,8 @@ router.get('/plan/:id', async (req, res) => {
     }
 });
 
-// Todo:
+router.get('/plan/advanced/:id', async (req, res) => {
+    
+})
 
 module.exports = router;

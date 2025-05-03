@@ -36,6 +36,34 @@ class AIService {
             throw new Error("Invalid DDLItem");
         }
     }
+
+    async advancedPlanDeadline(ddlItem) {
+        if (ddlItem && ddlItem instanceof Object) {
+            try {
+                const message = AIPromptGenerator.generatePrompt(ddlItem);
+                
+                // 使用 await 处理 axios 请求
+                const response = await axios.post(
+                    'http://localhost:5001/llm/generate',
+                    {
+                        model: 'deepseek/deepseek-chat',
+                        messages: [{
+                            role: 'user',
+                            content: message
+                        }]
+                    }
+                );
+                
+                // 返回实际的响应数据
+                return response.data;
+            } catch (error) {
+                console.error("AI service error:", error);
+                throw new Error("Failed to get AI response: " + error.message);
+            }
+        } else {
+            throw new Error("Invalid DDLItem");
+        }
+    }
 }
 
 module.exports = AIService;

@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const authMiddleware = require('./middleware/authMiddleware');
 
 const dbRoutes = require('./routes/dbRoutes'); // 数据库操作路由
 const authRoutes = require('./routes/authRoutes'); // 认证路由
@@ -20,9 +21,9 @@ app.use(cors());
 app.use(morgan(LOG_LEVEL));
 app.use(bodyParser.json());
 
-app.use(API_DIR + '/db', dbRoutes);
+app.use(API_DIR + '/db', authMiddleware, dbRoutes);
 app.use(API_DIR + '/auth', authRoutes);
-app.use(API_DIR + '/ai', aiRoutes);
+app.use(API_DIR + '/ai', authMiddleware, aiRoutes);
 app.use(API_DIR, express.Router().get('/', (req, res) => {
     res.json({ message: 'Welcome to the API!' });
 }));

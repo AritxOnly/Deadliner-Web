@@ -122,14 +122,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final model = context.watch<SettingsModel>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('设置'),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        scrolledUnderElevation: 4,
-      ),
       body: SingleChildScrollView(
         child: Column(
           children: [

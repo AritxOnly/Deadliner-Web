@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/homepage.dart';
+import 'package:frontend/screens/setting_screen.dart';
 import 'package:frontend/utils/auth_utils.dart';
 import 'package:frontend/screens/users_page.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const DeadlinerApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => SettingsModel(),
+      child: const DeadlinerApp(),
+    ),
+  );
 }
 
 class DeadlinerApp extends StatelessWidget {

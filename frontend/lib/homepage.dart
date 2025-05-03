@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/ai_screen.dart';
+import 'package:frontend/screens/setting_screen.dart';
 import 'package:frontend/screens/task_screen.dart';
 import 'package:frontend/screens/habit_screen.dart';
 import 'package:frontend/screens/overview_screen.dart';
@@ -275,8 +277,10 @@ class _HomePageState extends State<HomePage> {
         return const HabitScreen();
       case 2:
         return const OverviewScreen();
-      // case 3:
-      //   return const SettingsScreen();
+      case 3:
+        return const AIScreen();
+      case 4:
+        return const SettingsScreen();
       default:
         return const TaskScreen();
     }

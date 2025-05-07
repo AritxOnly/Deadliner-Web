@@ -9,6 +9,8 @@ class SettingKeys {
   static const String progressWidget = 'progressWidget';
   static const String motivationalQuotes = 'motivationalQuotes';
   static const String fireworks = 'fireworks';
+  static const String dynamicSchemeVariant = 'dynamicSchemeVariant';
+  static const String accentColor = 'accentColor';
 }
 
 /// 设置操作工具类
@@ -20,7 +22,10 @@ class SettingUtils {
   }
 
   /// 获取布尔类型设置
-  static Future<bool> getBoolSetting(String key, {bool defaultValue = false}) async {
+  static Future<bool> getBoolSetting(
+    String key, {
+    bool defaultValue = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(key) ?? defaultValue;
   }
@@ -35,6 +40,21 @@ class SettingUtils {
   static Future<int> getIntSetting(String key, {int defaultValue = 0}) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(key) ?? defaultValue;
+  }
+
+  /// 保存字符串类型设置
+  static Future<void> saveStringSetting(String key, String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+  }
+
+  /// 获取字符串类型设置
+  static Future<String?> getStringSetting(
+    String key, {
+    String? defaultValue,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key) ?? defaultValue;
   }
 
   /// 重置所有设置
@@ -56,8 +76,14 @@ class SettingUtils {
   /// 从JSON导入设置
   static Future<void> importSettings(Map<String, dynamic> json) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(SettingKeys.vibration, json[SettingKeys.vibration] as bool);
-    await prefs.setInt(SettingKeys.archiveDays, json[SettingKeys.archiveDays] as int);
+    await prefs.setBool(
+      SettingKeys.vibration,
+      json[SettingKeys.vibration] as bool,
+    );
+    await prefs.setInt(
+      SettingKeys.archiveDays,
+      json[SettingKeys.archiveDays] as int,
+    );
     // 处理其他导入键...
   }
 }
@@ -65,7 +91,8 @@ class SettingUtils {
 /// 设置页面样式工具
 class SettingStyleUtils {
   /// 获取卡片默认边距
-  static EdgeInsets get cardMargin => const EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+  static EdgeInsets get cardMargin =>
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 8);
 
   /// 构建设置项标题样式
   static TextStyle sectionTitleStyle(BuildContext context) {
@@ -81,9 +108,7 @@ class SettingStyleUtils {
     return CardTheme(
       color: Theme.of(context).colorScheme.errorContainer,
       margin: cardMargin,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

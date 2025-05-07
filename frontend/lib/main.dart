@@ -20,19 +20,26 @@ class DeadlinerApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsModel>();
     return MaterialApp(
       title: 'Deadliner-Web',
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: settings.accentColor, // 使用设置中的强调色
+          brightness: Brightness.light,
+          dynamicSchemeVariant: settings.dynamicSchemeVariant,
+          // DynamicSchemeVariant.expressive
+        ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
+          seedColor: settings.accentColor, // 使用设置中的强调色
           brightness: Brightness.dark,
+          dynamicSchemeVariant: settings.dynamicSchemeVariant,
         ),
       ),
       themeMode: ThemeMode.system,

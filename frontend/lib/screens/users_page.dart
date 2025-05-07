@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/utils/auth_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UsersPage extends StatefulWidget {
   const UsersPage({super.key});
@@ -13,6 +14,8 @@ class _UsersPageState extends State<UsersPage> {
   bool isLoggedIn = false;
   // 是否显示注册表单
   bool showRegisterForm = false;
+  // 用户名
+  String? _username;
 
   @override
   void initState() {
@@ -27,6 +30,19 @@ class _UsersPageState extends State<UsersPage> {
     if (mounted) {
       setState(() {
         isLoggedIn = loggedIn;
+        if (isLoggedIn) {
+          _loadUsername();
+        }
+      });
+    }
+  }
+
+  // 加载用户名
+  void _loadUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _username = prefs.getString('user');
       });
     }
   }
@@ -73,6 +89,7 @@ class _UsersPageState extends State<UsersPage> {
         if (success) {
           setState(() {
             isLoggedIn = true;
+            _loadUsername(); // 登录成功后加载用户名
           });
           ScaffoldMessenger.of(
             context,
@@ -125,6 +142,7 @@ class _UsersPageState extends State<UsersPage> {
           setState(() {
             isLoggedIn = true;
             showRegisterForm = false;
+            _loadUsername(); // 注册成功后加载用户名
           });
           ScaffoldMessenger.of(
             context,
@@ -285,7 +303,7 @@ class _UsersPageState extends State<UsersPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            _usernameController.text.isEmpty ? '用户' : _usernameController.text,
+            _username ?? '用户名',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 24),

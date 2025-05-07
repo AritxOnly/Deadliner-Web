@@ -17,6 +17,12 @@ class _TaskScreenState extends State<TaskScreen> {
   final List<Map<String, dynamic>> _taskData = [];
   late WebUtils webUtils;
 
+  void _sortTaskData() {
+    _taskData.sort(
+      (a, b) => (a['progress'] as double).compareTo(b['progress'] as double),
+    );
+  }
+
   void exampleInit() {
     _taskData.addAll([
       {
@@ -98,6 +104,10 @@ class _TaskScreenState extends State<TaskScreen> {
                 }
               }
 
+              if (item.isArchived || item.type == DeadlineType.HABIT) {
+                continue; // 跳过已归档或习惯类型的任务
+              }
+
               // 将DDLItem转换为任务数据格式
               _taskData.add({
                 'id': item.id, // 保存ID以便后续更新和删除
@@ -107,6 +117,7 @@ class _TaskScreenState extends State<TaskScreen> {
                 'progress': progress,
               });
             }
+            _sortTaskData(); // Sort after fetching DDLs
           });
         }
       } catch (e) {
@@ -172,6 +183,7 @@ class _TaskScreenState extends State<TaskScreen> {
             'remainingTime': remainingTimeText,
             'progress': progress,
           });
+          _sortTaskData(); // Sort after adding a task
         });
       }
     } catch (e) {
@@ -249,6 +261,7 @@ class _TaskScreenState extends State<TaskScreen> {
           _taskData[index]['note'] = note;
           _taskData[index]['remainingTime'] = remainingTimeText;
           _taskData[index]['progress'] = progress;
+          _sortTaskData(); // Sort after updating a task
         });
       } else {
         throw Exception('更新任务失败');
@@ -455,7 +468,7 @@ class DDLItemWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: LinearProgressIndicator(
-        value: progress,
+        value: 1.0 - progress,
         minHeight: 6,
         borderRadius: BorderRadius.circular(6),
         color: Theme.of(context).colorScheme.primary,

@@ -4,9 +4,12 @@ const router = express.Router();
 const DBService = require('../services/dbService');
 const DDLItem = require('../models/DDLItem');
 
-const dbService = new DBService();
+// const dbService = new DBService(); // Removed global instance
 
 router.get('/items', (req, res) => {
+    // console.log(req.headers);
+    const userId = req.headers.user || 'defaultUser';
+    const dbService = new DBService(userId);
     dbService.getAllDDLs().then((items) => {
         res.json(items);
     }).catch((err) => {
@@ -15,6 +18,9 @@ router.get('/items', (req, res) => {
 });
 
 router.get('/items/:id', (req, res) => {
+    // console.log(req.headers);
+    const userId = req.headers.user || 'defaultUser';
+    const dbService = new DBService(userId);
     const id = req.params.id;
     dbService.getDDLById(id).then((item) => {
         res.json(item);
@@ -24,6 +30,8 @@ router.get('/items/:id', (req, res) => {
 });
 
 router.post('/items', (req, res) => {
+    const userId = req.headers.user || 'defaultUser';
+    const dbService = new DBService(userId);
     const item = req.body;
     dbService.insertDDL(
         item.name,
@@ -39,6 +47,8 @@ router.post('/items', (req, res) => {
 });
 
 router.put('/items/:id', (req, res) => {
+    const userId = req.headers.user || 'defaultUser';
+    const dbService = new DBService(userId);
     const body = req.body;
     dbService.getDDLById(req.params.id).then(orgItem => {
         const item = new DDLItem({
@@ -63,6 +73,8 @@ router.put('/items/:id', (req, res) => {
 });
 
 router.delete('/items/:id', (req, res) => {
+    const userId = req.headers.user || 'defaultUser';
+    const dbService = new DBService(userId);
     const id = req.params.id;
     dbService.deleteDDL(id).then(() => {
         res.json({ success: true });

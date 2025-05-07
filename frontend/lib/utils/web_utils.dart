@@ -14,10 +14,12 @@ class WebUtils {
   factory WebUtils() => _instance;
   WebUtils._internal(this.client) {
     _loadTokenFromPrefs();
+    _loadUserFromPrefs();
   }
 
   final http.Client client;
   String? _authToken;
+  String? _user;
 
   final String baseDomain = 'localhost';
   final String basePort = '3000';
@@ -34,6 +36,7 @@ class WebUtils {
     final headers = {'Content-Type': 'application/json'};
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
+      headers['User'] = '$_user';
     }
     return headers;
   }
@@ -55,6 +58,23 @@ class WebUtils {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKeyToken);
     _authToken = null;
+  }
+
+  Future<void> _loadUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    _user = prefs.getString('user');
+  }
+
+  Future<void> _saveUserToPrefs(String user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user', user);
+    _user = user;
+  }
+
+  Future<void> _clearUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user');
+    _user = null;
   }
 
   /// 检查网络是否可用
@@ -84,6 +104,7 @@ class WebUtils {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         await _saveTokenToPrefs(data['token']);
+        await _saveUserToPrefs(username);
         return true;
       } else {
         return false;
@@ -108,6 +129,7 @@ class WebUtils {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         await _saveTokenToPrefs(data['token']);
+        await _saveUserToPrefs(username);
         return true;
       } else {
         return false;
@@ -120,6 +142,7 @@ class WebUtils {
   /// 登出
   void logout() {
     _clearTokenFromPrefs();
+    _clearUserFromPrefs();
   }
 
   /// 拉取所有的DDL

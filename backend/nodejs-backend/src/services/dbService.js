@@ -1,12 +1,20 @@
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
 const DDLItem = require('../models/DDLItem');
 
 class DBService {
-    constructor() {
-        const dbPath = path.resolve(__dirname, "../../database/deadliner.db");
-        this.db = new sqlite3.Database(dbPath);
+    constructor(userId) {
+        if (!userId) {
+            throw new Error('User ID is required to initialize DBService');
+        }
+        const dbDir = path.resolve(__dirname, `../../database/${userId}`);
+        if (!fs.existsSync(dbDir)) {
+            fs.mkdirSync(dbDir, { recursive: true });
+        }
+        const dbPath = path.resolve(dbDir, "deadliner.db");
+        // this.db = new sqlite3.Database(dbPath); // This line seems redundant and can be removed or commented out
 
         this.db = new sqlite3.Database(dbPath, (err) => {
             if (err) {

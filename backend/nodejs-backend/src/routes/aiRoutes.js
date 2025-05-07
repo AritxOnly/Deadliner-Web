@@ -5,13 +5,15 @@ const DBService = require('../services/dbService');
 
 const router = express.Router();
 
-const dbService = new DBService();
+// const dbService = new DBService(); // Removed global instance
 const aiService = new AIService();
 
 router.get('/plan/:id', async (req, res) => {
     try {
         const id = req.params.id;
         
+        const userId = req.headers.user || 'defaultUser'; 
+        const dbService = new DBService(userId);
         const ddlItem = await dbService.getDDLById(id);
         
         if (!ddlItem) {

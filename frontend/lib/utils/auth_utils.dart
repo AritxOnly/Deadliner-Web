@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/utils/setting_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/screens/users_page.dart';
 import 'package:frontend/utils/web_utils.dart';
@@ -48,6 +49,18 @@ class AuthUtils {
   Future<bool> login(String username, String password) async {
     final result = await _webUtils.login(username, password);
     await _saveLoginStatus(result);
+
+    if (result) {
+      try {
+        // 登录成功后，获取用户偏好设置
+        final userPrefs = await _webUtils.getUserPrefs(username);
+
+        await SettingUtils.importSettings(userPrefs);
+      } catch (e) {
+        // 处理获取或保存偏好设置失败的情况，例如记录日志
+        print('Failed to load or save user preferences after login: \$e');
+      }
+    }
     return result;
   }
 

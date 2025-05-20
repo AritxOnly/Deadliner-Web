@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/utils/setting_utils.dart';
+import 'package:frontend/utils/global_utils.dart';
 import 'package:provider/provider.dart';
+import 'package:frontend/utils/setting_utils.dart';
+import 'dart:convert';
+import 'package:frontend/utils/web_utils.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
+import 'dart:io' show File;
 
 class SettingsModel extends ChangeNotifier {
   bool _vibration = true;
   int _archiveDays = 7;
   DynamicSchemeVariant _dynamicSchemeVariant = DynamicSchemeVariant.rainbow;
   Color _accentColor = Colors.blue; // 默认强调色
+  // Add other settings properties if they exist in SettingUtils and need to be managed here
+  // For example:
+  // bool _progressDirection = true; // Assuming default
+  // bool _progressWidget = true; // Assuming default
+  // bool _motivationalQuotes = true; // Assuming default
+  // bool _fireworks = true; // Assuming default
+
+  // Corresponding getters
+  // bool get progressDirection => _progressDirection;
+  // bool get progressWidget => _progressWidget;
+  // bool get motivationalQuotes => _motivationalQuotes;
+  // bool get fireworks => _fireworks;
 
   bool get vibration => _vibration;
   int get archiveDays => _archiveDays;
@@ -31,6 +49,28 @@ class SettingsModel extends ChangeNotifier {
     _saveToPrefs();
   }
 
+  // Add setters for other properties if needed, for example:
+  // void toggleProgressDirection(bool value) {
+  //   _progressDirection = value;
+  //   notifyListeners();
+  //   _saveToPrefs();
+  // }
+  // void toggleProgressWidget(bool value) {
+  //   _progressWidget = value;
+  //   notifyListeners();
+  //   _saveToPrefs();
+  // }
+  // void toggleMotivationalQuotes(bool value) {
+  //   _motivationalQuotes = value;
+  //   notifyListeners();
+  //   _saveToPrefs();
+  // }
+  // void toggleFireworks(bool value) {
+  //   _fireworks = value;
+  //   notifyListeners();
+  //   _saveToPrefs();
+  // }
+
   void setArchiveDays(int days) {
     _archiveDays = days;
     notifyListeners();
@@ -38,41 +78,42 @@ class SettingsModel extends ChangeNotifier {
   }
 
   Future<void> _saveToPrefs() async {
-    await SettingUtils.saveBoolSetting(SettingKeys.vibration, _vibration);
-    await SettingUtils.saveIntSetting(SettingKeys.archiveDays, _archiveDays);
-    await SettingUtils.saveStringSetting(
-      SettingKeys.dynamicSchemeVariant,
-      _dynamicSchemeVariant.toString(),
-    );
-    await SettingUtils.saveIntSetting(
-      SettingKeys.accentColor,
-      _accentColor.toARGB32(),
-    );
+    GlobalUtils.vibration = _vibration;
+    GlobalUtils.archiveDays = _archiveDays;
+    GlobalUtils.dynamicSchemeVariant = _dynamicSchemeVariant.toString();
+    GlobalUtils.accentColor =
+        _accentColor.value.toString(); // Store color as int string
+
+    // 同步设置到后端
+    final webUtils = WebUtils();
+    if (webUtils.currentUser != null) {
+      final userPrefs = {
+        'vibration': _vibration,
+        'archiveDays': _archiveDays,
+        'dynamicSchemeVariant': _dynamicSchemeVariant.toString(),
+        'accentColor': _accentColor.value.toString(),
+      };
+      await webUtils.updateUserPrefs(webUtils.currentUser!, userPrefs);
+    }
   }
 
   Future<void> loadPrefs() async {
-    _vibration = await SettingUtils.getBoolSetting(
-      SettingKeys.vibration,
-      defaultValue: true,
-    );
-    _archiveDays = await SettingUtils.getIntSetting(
-      SettingKeys.archiveDays,
-      defaultValue: 7,
-    );
-    final String? variantString = await SettingUtils.getStringSetting(
-      SettingKeys.dynamicSchemeVariant,
-      defaultValue: DynamicSchemeVariant.rainbow.toString(),
-    );
+    _vibration = GlobalUtils.vibration;
+    _archiveDays = GlobalUtils.archiveDays;
+    final String variantString = GlobalUtils.dynamicSchemeVariant;
     _dynamicSchemeVariant = DynamicSchemeVariant.values.firstWhere(
       (e) => e.toString() == variantString,
-      orElse: () => DynamicSchemeVariant.rainbow,
+      orElse:
+          () =>
+              DynamicSchemeVariant
+                  .rainbow, // Default if parsing fails or value is unexpected
     );
-    _accentColor = Color(
-      await SettingUtils.getIntSetting(
-        SettingKeys.accentColor,
-        defaultValue: Colors.blue.toARGB32(), // 默认强调色的整数值
-      ),
-    );
+    // Accent color is stored as a string integer, parse it
+    try {
+      _accentColor = Color(int.parse(GlobalUtils.accentColor));
+    } catch (e) {
+      _accentColor = Colors.blue; // Default color if parsing fails
+    }
     notifyListeners();
   }
 }
@@ -177,7 +218,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     model.toggleVibration,
                   ),
                   _buildSwitchTile('进度方向', true, (_) {}),
-                  _buildSwitchTile('进度组件', true, (_) {}),
                   _buildSwitchTile('励志语录', true, (_) {}),
                   _buildSwitchTile('完成动画', true, (_) {}),
                   _buildArchiveTimeSelector(),
@@ -216,14 +256,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     leading: Icon(Icons.import_export),
                     title: Text('导入数据'),
                     trailing: Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () async {
+                      final result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['json'],
+                        withData: kIsWeb, // web 直接拿 bytes
+                      );
+                      if (result == null || result.files.isEmpty)
+                        return; // 用户取消
+
+                      String content;
+                      if (kIsWeb) {
+                        // Web 上直接用 bytes 解码
+                        final bytes = result.files.first.bytes!;
+                        content = utf8.decode(bytes);
+                      } else {
+                        // 移动端读取本地路径
+                        final path = result.files.first.path!;
+                        content = await File(path).readAsString();
+                      }
+
+                      // 2. 解析 JSON
+                      dynamic jsonData;
+                      try {
+                        jsonData = jsonDecode(content);
+                      } catch (e) {
+                        // 解析失败
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('解析 JSON 失败：$e')),
+                        );
+                        return;
+                      }
+
+                      // 3. 调用你的导入逻辑
+                      try {
+                        await SettingUtils.importSettings(jsonData);
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text('导入成功')));
+                      } catch (e) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text('导入失败：$e')));
+                      }
+                    },
                   ),
                   Divider(height: 1),
                   ListTile(
                     leading: Icon(Icons.save_alt),
                     title: Text('导出数据'),
                     trailing: Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () async {
+                      final json = await SettingUtils.exportSettings();
+                      print(json);
+                    },
                   ),
                 ],
               ),

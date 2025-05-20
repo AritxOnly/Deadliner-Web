@@ -21,6 +21,8 @@ class WebUtils {
   String? _authToken;
   String? _user;
 
+  String? get currentUser => _user;
+
   final String baseDomain = 'localhost';
   final String basePort = '3000';
   final String apiVersion = 'v1';
@@ -30,6 +32,7 @@ class WebUtils {
   String get ddlItemsUrl => '$baseUrl/db/items';
   String get registerUrl => '$baseUrl/auth/register';
   String get loginUrl => '$baseUrl/auth/login';
+  String userPrefsUrl(String username) => '$baseUrl/user/$username/prefs';
 
   /// 获取认证头
   Map<String, String> get _headers {
@@ -143,6 +146,56 @@ class WebUtils {
   void logout() {
     _clearTokenFromPrefs();
     _clearUserFromPrefs();
+  }
+
+  /// 获取用户偏好设置
+  /// @param username 用户名
+  /// @return 用户偏好设置 (Map<String, dynamic>)
+  Future<Map<String, dynamic>> getUserPrefs(String username) async {
+    if (_user == null || _user != username) {
+      throw Exception('User not logged in or username mismatch');
+    }
+    final response = await client.get(
+      Uri.parse(userPrefsUrl(username)),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final dynamic responseData = json.decode(response.body);
+      if (responseData is Map<String, dynamic>) {
+        return responseData;
+      } else if (responseData == null ||
+          (responseData is String && responseData.isEmpty)) {
+        // 后端可能返回空字符串或null，表示没有偏好设置，返回一个空Map
+        return {};
+      } else {
+        throw Exception('Invalid response format for user preferences');
+      }
+    } else {
+      throw Exception('Failed to load user preferences');
+    }
+  }
+
+  /// 更新用户偏好设置
+  /// @param username 用户名
+  /// @param prefs 需要更新的偏好设置 (Map<String, dynamic>)
+  /// @return 是否成功
+  Future<bool> updateUserPrefs(
+    String username,
+    Map<String, dynamic> prefs,
+  ) async {
+    if (_user == null || _user != username) {
+      throw Exception('User not logged in or username mismatch');
+    }
+    final response = await client.post(
+      Uri.parse(userPrefsUrl(username)),
+      headers: _headers,
+      body: json.encode({
+        'prefs': prefs,
+      }), // 根据后端 userRoutes.js, body应该是 {'prefs': prefs}
+    );
+
+    return response.statusCode == 200;
   }
 
   /// 拉取所有的DDL

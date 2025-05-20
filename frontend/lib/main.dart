@@ -4,8 +4,11 @@ import 'package:frontend/screens/setting_screen.dart';
 import 'package:frontend/utils/auth_utils.dart';
 import 'package:frontend/screens/users_page.dart';
 import 'package:provider/provider.dart';
+import 'package:frontend/utils/global_utils.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await GlobalUtils.init();
   runApp(
     ChangeNotifierProvider(
       create: (_) => SettingsModel(),
@@ -27,7 +30,7 @@ class DeadlinerApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: settings.accentColor, // 使用设置中的强调色
+          seedColor: Color(int.parse(GlobalUtils.accentColor)),
           brightness: Brightness.light,
           dynamicSchemeVariant: settings.dynamicSchemeVariant,
           // DynamicSchemeVariant.expressive
@@ -37,7 +40,7 @@ class DeadlinerApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: settings.accentColor, // 使用设置中的强调色
+          seedColor: Color(int.parse(GlobalUtils.accentColor)), // 使用设置中的强调色
           brightness: Brightness.dark,
           dynamicSchemeVariant: settings.dynamicSchemeVariant,
         ),

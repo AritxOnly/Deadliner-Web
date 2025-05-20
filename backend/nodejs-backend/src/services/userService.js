@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
@@ -28,7 +29,27 @@ class UserService {
             )
         `;
         this.db.run(createTableQuery);
+
+        // 添加 api_key 字段
+        this.db.run(`
+            ALTER TABLE users ADD COLUMN api_key TEXT
+          `, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+              console.error('添加 api_key 字段失败:', err.message);
+            }
+          });
+        
+        // 添加 prefs 字段
+        this.db.run(`
+            ALTER TABLE users ADD COLUMN prefs TEXT
+          `, (err) => {
+            if (err &&!err.message.includes('duplicate column')) {
+              console.error('添加 prefs 字段失败:', err.message);
+            }
+          });
     }
+
+    generateApiKey = () => crypto.randomBytes(32).toString('hex');
 
     // 用户注册
     async register(username, password, isVip = false) {
@@ -39,11 +60,12 @@ class UserService {
 
         const hashedPassword = await bcrypt.hash(password, this.SALT_ROUNDS);
         const tokenLeft = isVip ? 8000 : 0;
+        const apiKey = this.generateApiKey();
         return new Promise((resolve, reject) => {
             const stmt = this.db.prepare(
-                'INSERT INTO users (username, password_hash, token_left) VALUES (?, ?, ?)'
+                'INSERT INTO users (username, password_hash, token_left, api_key) VALUES (?, ?, ?, ?)'
             );
-            stmt.run(username, hashedPassword, tokenLeft, function(err) {
+            stmt.run(username, hashedPassword, tokenLeft, apiKey, function(err) {
                 if (err) reject(err);
                 else resolve(this.lastID);
             });
@@ -62,6 +84,15 @@ class UserService {
         if (!isValid) {
             throw new Error('Invalid credentials');
         }
+
+        this.db.all('SELECT id FROM users WHERE api_key IS NULL', [], (err, rows) => {
+            if (err) return console.error(err);
+    
+            rows.forEach((user) => {
+                const newKey = this.generateApiKey();
+                this.db.run('UPDATE users SET api_key = ? WHERE id = ?', [newKey, user.id]);
+            });
+        });
 
         return this.generateToken(user);
     }
@@ -123,6 +154,45 @@ class UserService {
                 }
             )
         })
+    }
+    
+    async getUserByApiKey(apiKey) {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT * FROM users WHERE api_key = ?',
+                [apiKey],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+    }
+
+    async updateUserPrefs(username, prefs) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE users SET prefs =? WHERE username =?',
+                [prefs, username],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            )
+        })
+    }
+
+    async getUserPrefs(username) {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT prefs FROM users WHERE username =?',
+                [username],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row.prefs);
+                }
+            );
+        });
     }
 }
 

@@ -5,6 +5,7 @@ import 'package:frontend/screens/task_screen.dart';
 import 'package:frontend/screens/habit_screen.dart';
 import 'package:frontend/screens/overview_screen.dart';
 import 'package:frontend/screens/users_page.dart';
+import 'dart:math';
 
 class HomepageDestination {
   const HomepageDestination(this.label, this.icon, this.selectedIcon);
@@ -47,9 +48,44 @@ class _HomePageState extends State<HomePage> {
   int screenIndex = 0;
   late bool showNavigationDrawer;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late String _randomQuote;
+
+  final List<String> _motivationQuotes = [
+    'Deadline 在追杀你！快跑💨',
+    '任务完成度：1% → 99%🤯',
+    '再拖？DDL要咬人了！🦖',
+    '你离「完成」只差一个「提交」🚀',
+    '提醒：别躺了，起来肝！🛏️→💻',
+    '「先玩5分钟」→ 5小时😱',
+    '你的待办列表：📜🔥（烧起来了)',
+    '今日任务：活着 + 搞定它💪',
+    'DDL越近，手速越快⚡',
+    '「我明天做」→ 经典flag🚩',
+    '任务完成 ✔️ 奖励：睡大觉！😴',
+    '检测到：你在焦虑🌀',
+    '别刷电脑了！💻→❌',
+    '「最后亿分钟」⌛',
+    '任务堆积如山？愚公移山！⛰️',
+    'DDL是你的敌人？不，是动力！💥',
+    '「我好了」→「我装的」😏',
+    '今日成就：没放弃！🏆',
+    '建议：先做最难的！🎯',
+    '完成它！然后大喊：Next！🎤',
+  ];
 
   // 控制导航抽屉是否展开的状态
   bool _isDrawerExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectRandomQuote();
+  }
+
+  void _selectRandomQuote() {
+    final random = Random();
+    _randomQuote = _motivationQuotes[random.nextInt(_motivationQuotes.length)];
+  }
 
   @override
   void didChangeDependencies() {
@@ -161,6 +197,22 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
+                  ),
+                ),
+                // Display random quote
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28.0,
+                    vertical: 16.0,
+                  ),
+                  child: Text(
+                    _randomQuote,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                    textScaleFactor: 1.1,
                   ),
                 ),
                 const Padding(padding: EdgeInsets.symmetric(horizontal: 28)),

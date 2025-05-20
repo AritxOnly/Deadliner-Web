@@ -28,13 +28,17 @@ class _TaskScreenState extends State<TaskScreen> {
       {
         'title': '项目原型设计',
         'note': '需完成用户流程设计',
-        'remainingTime': '剩余3天',
+        'startTime': DateTime.now().toIso8601String(),
+        'endTime':
+            DateTime.now().add(const Duration(days: 3)).toIso8601String(),
         'progress': 0.6,
       },
       {
         'title': '开发文档编写',
         'note': '',
-        'remainingTime': '剩余12小时',
+        'startTime': DateTime.now().toIso8601String(),
+        'endTime':
+            DateTime.now().add(const Duration(hours: 12)).toIso8601String(),
         'progress': 0.2,
       },
     ]);
@@ -87,33 +91,22 @@ class _TaskScreenState extends State<TaskScreen> {
                 }
               }
 
-              // 格式化剩余时间显示
-              String remainingTimeText = '截止: ${item.endTime}';
-              if (endTime != GlobalUtils.timeNull) {
-                if (now.isAfter(endTime)) {
-                  remainingTimeText = '已截止';
-                } else {
-                  final remaining = endTime.difference(now);
-                  if (remaining.inDays > 0) {
-                    remainingTimeText = '剩余${remaining.inDays}天';
-                  } else if (remaining.inHours > 0) {
-                    remainingTimeText = '剩余${remaining.inHours}小时';
-                  } else {
-                    remainingTimeText = '剩余${remaining.inMinutes}分钟';
-                  }
-                }
-              }
+              // 剩余时间显示逻辑已移至DDLItemWidget
 
               if (item.isArchived || item.type == DeadlineType.HABIT) {
                 continue; // 跳过已归档或习惯类型的任务
               }
+
+              progress =
+                  GlobalUtils.progressDirection ? (1.0 - progress) : progress;
 
               // 将DDLItem转换为任务数据格式
               _taskData.add({
                 'id': item.id, // 保存ID以便后续更新和删除
                 'title': item.name,
                 'note': item.note,
-                'remainingTime': remainingTimeText,
+                'startTime': item.startTime, // Added
+                'endTime': item.endTime, // Added
                 'progress': progress,
               });
             }
@@ -133,61 +126,72 @@ class _TaskScreenState extends State<TaskScreen> {
     initializeConnection();
   }
 
-  Future<void> addTask(String title, String note, String timeText) async {
+  Future<void> addTask(
+    String title,
+    String note,
+    String startTimeText,
+    String endTimeText,
+  ) async {
+    // MODIFIED
     try {
-      // 假设timeText是一个日期时间字符串
-      final endTime = GlobalUtils.safeParseDateTime(timeText);
+      // Parse start and end times
+      final startDateTime = GlobalUtils.safeParseDateTime(startTimeText);
+      final endDateTime = GlobalUtils.safeParseDateTime(endTimeText);
       final now = DateTime.now();
-      final startTime = now.toIso8601String(); // 使用当前时间作为开始时间
 
-      if (endTime != GlobalUtils.timeNull) {
-        // 创建新的DDL项目
-        final id = await webUtils.createDDL(
-          title,
-          startTime,
-          timeText, // 使用原始时间文本作为结束时间
-          note,
-          DeadlineType.TASK, // 默认类型为任务
-        );
+      if (startDateTime != GlobalUtils.timeNull &&
+          endDateTime != GlobalUtils.timeNull &&
+          startDateTime.isAfter(endDateTime)) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('开始时间不能晚于结束时间')));
+        }
+        return;
+      }
 
-        // 计算进度和剩余时间显示
-        double progress = 0.0;
-        String remainingTimeText = timeText;
+      // Create new DDL item
+      final id = await webUtils.createDDL(
+        title,
+        startTimeText, // MODIFIED
+        endTimeText, // MODIFIED
+        note,
+        DeadlineType.TASK,
+      );
 
-        // 格式化剩余时间显示
-        if (now.isAfter(endTime)) {
-          remainingTimeText = '已截止';
+      // Calculate progress
+      double progress = 0.0;
+      if (startDateTime != GlobalUtils.timeNull &&
+          endDateTime != GlobalUtils.timeNull) {
+        if (now.isBefore(startDateTime)) {
+          progress = 0.0;
+        } else if (now.isAfter(endDateTime)) {
           progress = 1.0;
         } else {
-          final remaining = endTime.difference(now);
-          if (remaining.inDays > 0) {
-            remainingTimeText = '剩余${remaining.inDays}天';
-          } else if (remaining.inHours > 0) {
-            remainingTimeText = '剩余${remaining.inHours}小时';
-          } else {
-            remainingTimeText = '剩余${remaining.inMinutes}分钟';
-          }
-
-          // 计算进度
-          final totalDuration = endTime.difference(now).inMilliseconds;
-          final elapsedDuration = 0; // 刚刚开始，所以已经过去的时间为0
+          final totalDuration =
+              endDateTime.difference(startDateTime).inMilliseconds;
+          final elapsedDuration = now.difference(startDateTime).inMilliseconds;
           progress = totalDuration > 0 ? elapsedDuration / totalDuration : 0.0;
+          progress = progress.clamp(0.0, 1.0);
         }
-
-        // 更新UI
-        setState(() {
-          _taskData.add({
-            'id': id, // 保存ID以便后续更新和删除
-            'title': title,
-            'note': note,
-            'remainingTime': remainingTimeText,
-            'progress': progress,
-          });
-          _sortTaskData(); // Sort after adding a task
-        });
+      } else if (endDateTime != GlobalUtils.timeNull &&
+          now.isAfter(endDateTime)) {
+        progress = 1.0;
       }
+
+      // Update UI
+      setState(() {
+        _taskData.add({
+          'id': id,
+          'title': title,
+          'note': note,
+          'startTime': startTimeText, // MODIFIED
+          'endTime': endTimeText, // MODIFIED
+          'progress': progress,
+        });
+        _sortTaskData();
+      });
     } catch (e) {
-      // 处理错误
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -200,74 +204,74 @@ class _TaskScreenState extends State<TaskScreen> {
     int index,
     String title,
     String note,
-    String timeText,
+    String startTimeText, // MODIFIED
+    String endTimeText, // MODIFIED
   ) async {
     try {
-      // 获取任务ID
       final taskId = _taskData[index]['id'];
-      if (taskId == null) {
-        throw Exception('任务ID不存在');
-      }
+      if (taskId == null) throw Exception('任务ID不存在');
 
-      // 假设timeText是一个日期时间字符串
-      final endTime = GlobalUtils.safeParseDateTime(timeText);
+      final newStartDateTime = GlobalUtils.safeParseDateTime(startTimeText);
+      final newEndDateTime = GlobalUtils.safeParseDateTime(endTimeText);
       final now = DateTime.now();
 
-      // 准备更新数据
+      if (newStartDateTime != GlobalUtils.timeNull &&
+          newEndDateTime != GlobalUtils.timeNull &&
+          newStartDateTime.isAfter(newEndDateTime)) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('开始时间不能晚于结束时间')));
+        }
+        return;
+      }
+
       final Map<String, dynamic> updates = {
         'name': title,
         'note': note,
-        'endTime': timeText,
+        'startTime': startTimeText, // MODIFIED - Assuming API supports this
+        'endTime': endTimeText, // MODIFIED
       };
 
-      // 调用API更新任务
       final success = await webUtils.updateDDL(taskId, updates);
 
       if (success) {
-        // 计算新的进度和剩余时间
         double progress = 0.0;
-        String remainingTimeText = timeText;
-
-        if (endTime != GlobalUtils.timeNull) {
-          // 格式化剩余时间显示
-          if (now.isAfter(endTime)) {
-            remainingTimeText = '已截止';
+        // Use the new start and end times for progress calculation
+        if (newStartDateTime != GlobalUtils.timeNull &&
+            newEndDateTime != GlobalUtils.timeNull) {
+          if (now.isBefore(newStartDateTime)) {
+            progress = 0.0;
+          } else if (now.isAfter(newEndDateTime)) {
             progress = 1.0;
           } else {
-            final remaining = endTime.difference(now);
-            if (remaining.inDays > 0) {
-              remainingTimeText = '剩余${remaining.inDays}天';
-            } else if (remaining.inHours > 0) {
-              remainingTimeText = '剩余${remaining.inHours}小时';
-            } else {
-              remainingTimeText = '剩余${remaining.inMinutes}分钟';
-            }
-
-            // 假设任务从现在开始重新计算进度
-            final startTime = now;
-            final totalDuration = endTime.difference(startTime).inMilliseconds;
-            final elapsedDuration = 0; // 更新时重置进度
+            final totalDuration =
+                newEndDateTime.difference(newStartDateTime).inMilliseconds;
+            final elapsedDuration =
+                now.difference(newStartDateTime).inMilliseconds;
             progress =
                 totalDuration > 0 ? elapsedDuration / totalDuration : 0.0;
+            progress = progress.clamp(0.0, 1.0);
           }
+        } else if (newEndDateTime != GlobalUtils.timeNull &&
+            now.isAfter(newEndDateTime)) {
+          progress = 1.0;
         } else {
-          // 如果解析失败，保持当前进度
-          progress = _taskData[index]['progress'];
+          progress = _taskData[index]['progress']; // Fallback
         }
 
-        // 更新UI
         setState(() {
           _taskData[index]['title'] = title;
           _taskData[index]['note'] = note;
-          _taskData[index]['remainingTime'] = remainingTimeText;
+          _taskData[index]['startTime'] = startTimeText; // MODIFIED
+          _taskData[index]['endTime'] = endTimeText; // MODIFIED
           _taskData[index]['progress'] = progress;
-          _sortTaskData(); // Sort after updating a task
+          _sortTaskData();
         });
       } else {
         throw Exception('更新任务失败');
       }
     } catch (e) {
-      // 处理错误
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -336,16 +340,30 @@ class _TaskScreenState extends State<TaskScreen> {
                 return DDLItemWidget(
                   title: task['title'],
                   note: task['note'],
-                  remainingTime: task['remainingTime'],
+                  startTime: task['startTime'] as String,
+                  endTime: task['endTime'] as String,
                   progress: task['progress'],
                   onTap: () {
                     TaskUtils.showEditDialog(
                       context,
                       initialTitle: task['title'],
                       initialNote: task['note'],
-                      initialTime: task['remainingTime'],
-                      onConfirm: (newTitle, newNote, newTime) async {
-                        await updateTask(index, newTitle, newNote, newTime);
+                      initialStartTime: task['startTime'] as String, // MODIFIED
+                      initialEndTime: task['endTime'] as String, // MODIFIED
+                      onConfirm: (
+                        newTitle,
+                        newNote,
+                        newStartTime,
+                        newEndTime,
+                      ) async {
+                        // MODIFIED
+                        await updateTask(
+                          index,
+                          newTitle,
+                          newNote,
+                          newStartTime,
+                          newEndTime,
+                        ); // MODIFIED
                       },
                       onDelete: () async {
                         await deleteTask(index);
@@ -361,12 +379,7 @@ class _TaskScreenState extends State<TaskScreen> {
             bottom: 16,
             child: FloatingActionButton(
               onPressed: () {
-                TaskUtils.onFABPressed(
-                  context,
-                  onTaskAdd: (title, note, timeText) async {
-                    await addTask(title, note, timeText);
-                  },
-                );
+                TaskUtils.onFABPressed(context, onTaskAdd: addTask);
               },
               child: const Icon(Icons.add),
             ),
@@ -379,7 +392,8 @@ class _TaskScreenState extends State<TaskScreen> {
 
 class DDLItemWidget extends StatelessWidget {
   final String title;
-  final String remainingTime;
+  final String startTime;
+  final String endTime;
   final String note;
   final double progress;
   final VoidCallback? onTap;
@@ -387,11 +401,43 @@ class DDLItemWidget extends StatelessWidget {
   const DDLItemWidget({
     super.key,
     required this.title,
-    required this.remainingTime,
+    required this.startTime,
+    required this.endTime,
     this.note = "",
     required this.progress,
     this.onTap,
   });
+
+  String _getRemainingTimeText() {
+    final now = DateTime.now();
+    final endDateTime = GlobalUtils.safeParseDateTime(endTime);
+
+    if (endDateTime != GlobalUtils.timeNull) {
+      if (now.isAfter(endDateTime)) {
+        return '已截止';
+      } else {
+        final remaining = endDateTime.difference(now);
+        final remainingMinutes = remaining.inMinutes;
+        final actualRemainingDays = remaining.inMinutes / (60 * 24);
+        final actualRemainingHours = (remaining.inMinutes / 60) % 24;
+        final actualRemainingMinutes = remaining.inMinutes % 60;
+        print(
+          '$actualRemainingDays $actualRemainingHours $actualRemainingMinutes',
+        );
+
+        if (remainingMinutes <= 0) {
+          return '已截止';
+        } else if (remainingMinutes < 60) {
+          return '剩余 $remainingMinutes 分钟';
+        } else if (remainingMinutes < 60 * 24) {
+          return '剩余 ${remaining.inHours} 小时 ${remaining.inMinutes % 60} 分钟';
+        } else {
+          return '剩余 ${remaining.inDays} 天 ${remaining.inHours % 24} 小时 ${remaining.inMinutes % 60} 分钟';
+        }
+      }
+    }
+    return '截止: $endTime';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -441,7 +487,7 @@ class DDLItemWidget extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          remainingTime,
+          _getRemainingTimeText(), // Changed
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurface,
           ),
@@ -481,18 +527,38 @@ class DDLItemWidget extends StatelessWidget {
 class TaskUtils {
   static void onFABPressed(
     BuildContext context, {
-    required Future<void> Function(String title, String note, String timeText)
+    required Future<void> Function(
+      String title,
+      String note,
+      String startTimeText,
+      String endTimeText,
+    )
     onTaskAdd,
   }) {
-    _showTaskDialog(context, onConfirm: onTaskAdd);
+    final now = DateTime.now();
+    final initialStartTime = _formatDateTimeToString(
+      now,
+      TimeOfDay.fromDateTime(now),
+    );
+    _showTaskDialog(
+      context,
+      onConfirm: onTaskAdd,
+      initialStartTime: initialStartTime,
+    );
   }
 
   static void showEditDialog(
     BuildContext context, {
     required String initialTitle,
     required String initialNote,
-    required String initialTime,
-    required Future<void> Function(String title, String note, String timeText)
+    required String initialStartTime,
+    required String initialEndTime,
+    required Future<void> Function(
+      String title,
+      String note,
+      String startTimeText,
+      String endTimeText,
+    )
     onConfirm,
     required Future<void> Function() onDelete,
   }) {
@@ -500,54 +566,141 @@ class TaskUtils {
       context,
       initialTitle: initialTitle,
       initialNote: initialNote,
-      initialTime: initialTime,
+      initialStartTime: initialStartTime,
+      initialEndTime: initialEndTime,
       onConfirm: onConfirm,
       onDelete: onDelete,
     );
+  }
+
+  static String _formatDateTimeToDisplayString(
+    DateTime? date,
+    TimeOfDay? time,
+  ) {
+    if (date == null || time == null) return "";
+    final dateTime = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    return "${dateTime.year}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.day.toString().padLeft(2, '0')} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  static String _formatDateTimeToString(DateTime? date, TimeOfDay? time) {
+    if (date == null || time == null) return "";
+    final dateTime = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}T${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00";
   }
 
   static void _showTaskDialog(
     BuildContext context, {
     String initialTitle = "",
     String initialNote = "",
-    String initialTime = "",
-    required Future<void> Function(String title, String note, String timeText)
+    String initialStartTime = "",
+    String initialEndTime = "",
+    required Future<void> Function(
+      String title,
+      String note,
+      String startTimeText,
+      String endTimeText,
+    )
     onConfirm,
     Future<void> Function()? onDelete,
   }) {
     final titleController = TextEditingController(text: initialTitle);
     final noteController = TextEditingController(text: initialNote);
-    DateTime? selectedDate;
-    TimeOfDay? selectedTime;
+
+    DateTime? selectedStartDate;
+    TimeOfDay? selectedStartTime;
+    DateTime? selectedEndDate;
+    TimeOfDay? selectedEndTime;
+
+    if (initialStartTime.isNotEmpty) {
+      final parsedStartTime = GlobalUtils.safeParseDateTime(initialStartTime);
+      if (parsedStartTime != GlobalUtils.timeNull) {
+        selectedStartDate = parsedStartTime;
+        selectedStartTime = TimeOfDay.fromDateTime(parsedStartTime);
+      }
+    }
+    if (initialEndTime.isNotEmpty) {
+      final parsedEndTime = GlobalUtils.safeParseDateTime(initialEndTime);
+      if (parsedEndTime != GlobalUtils.timeNull) {
+        selectedEndDate = parsedEndTime;
+        selectedEndTime = TimeOfDay.fromDateTime(parsedEndTime);
+      }
+    }
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setState) {
-            String formattedDateTime() {
-              if (selectedDate == null && selectedTime == null) {
-                return initialTime;
-              }
+          builder: (context, setStateDialog) {
+            String currentFormattedStartTime = _formatDateTimeToString(
+              selectedStartDate,
+              selectedStartTime,
+            );
+            if (currentFormattedStartTime.isEmpty &&
+                initialStartTime.isNotEmpty &&
+                selectedStartDate == null &&
+                selectedStartTime == null) {
+              currentFormattedStartTime = initialStartTime;
+            }
 
-              // 如果没有选择日期，则使用当前日期
-              final date = selectedDate ?? DateTime.now();
-
-              // 如果没有选择时间，则使用23:59作为默认时间
-              final time =
-                  selectedTime ?? const TimeOfDay(hour: 23, minute: 59);
-
-              // 创建完整的DateTime对象
-              final dateTime = DateTime(
-                date.year,
-                date.month,
-                date.day,
-                time.hour,
-                time.minute,
+            String displayStartTime = _formatDateTimeToDisplayString(
+              selectedStartDate,
+              selectedStartTime,
+            );
+            if (displayStartTime.isEmpty &&
+                initialStartTime.isNotEmpty &&
+                selectedStartDate == null &&
+                selectedStartTime == null) {
+              final parsedInitialStartTime = GlobalUtils.safeParseDateTime(
+                initialStartTime,
               );
+              if (parsedInitialStartTime != GlobalUtils.timeNull) {
+                displayStartTime = _formatDateTimeToDisplayString(
+                  parsedInitialStartTime,
+                  TimeOfDay.fromDateTime(parsedInitialStartTime),
+                );
+              }
+            }
 
-              // 格式化为ISO 8601格式，与GlobalUtils.parseDateTime兼容
-              return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}T${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00";
+            String currentFormattedEndTime = _formatDateTimeToString(
+              selectedStartDate,
+              selectedStartTime,
+            );
+            if (currentFormattedStartTime.isEmpty &&
+                initialStartTime.isNotEmpty &&
+                selectedStartDate == null &&
+                selectedStartTime == null) {
+              currentFormattedStartTime = initialStartTime;
+            }
+
+            String displayEndTime = _formatDateTimeToDisplayString(
+              selectedEndDate,
+              selectedEndTime,
+            );
+            if (displayEndTime.isEmpty &&
+                initialEndTime.isNotEmpty &&
+                selectedEndDate == null &&
+                selectedEndTime == null) {
+              final parsedInitialEndTime = GlobalUtils.safeParseDateTime(
+                initialEndTime,
+              );
+              if (parsedInitialEndTime != GlobalUtils.timeNull) {
+                displayEndTime = _formatDateTimeToDisplayString(
+                  parsedInitialEndTime,
+                  TimeOfDay.fromDateTime(parsedInitialEndTime),
+                );
+              }
             }
 
             return AlertDialog(
@@ -579,44 +732,117 @@ class TaskUtils {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        FilledButton(
-                          onPressed: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime(2100),
+                    FilledButton.tonal(
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: selectedStartDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (BuildContext context, Widget? child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: child!,
                             );
-                            if (date != null) {
-                              setState(() => selectedDate = date);
-                            }
                           },
-                          child: const Text('选择日期'),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          onPressed: () async {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.now(),
-                            );
-                            if (time != null) {
-                              setState(() => selectedTime = time);
-                            }
-                          },
-                          child: const Text('选择时间'),
-                        ),
-                      ],
+                        );
+                        if (date != null) {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: selectedStartTime ?? TimeOfDay.now(),
+                            builder: (BuildContext context, Widget? child) {
+                              return MediaQuery(
+                                data: MediaQuery.of(
+                                  context,
+                                ).copyWith(alwaysUse24HourFormat: true),
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: child!,
+                                ),
+                              );
+                            },
+                          );
+                          if (time != null) {
+                            setStateDialog(() {
+                              selectedStartDate = date;
+                              selectedStartTime = time;
+                            });
+                          }
+                        }
+                      },
+                      child: const Text('选择开始时间'),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      currentFormattedStartTime.isEmpty
+                          ? '未选择开始时间'
+                          : '开始: $displayStartTime',
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Text('截止时间：'),
-                        const SizedBox(width: 8),
-                        Text(formattedDateTime()),
-                      ],
+                    FilledButton.tonal(
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate:
+                              selectedEndDate ??
+                              selectedStartDate ??
+                              DateTime.now(),
+                          firstDate: selectedStartDate ?? DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (BuildContext context, Widget? child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (date != null) {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime:
+                                selectedEndTime ??
+                                const TimeOfDay(hour: 23, minute: 59),
+                            builder: (BuildContext context, Widget? child) {
+                              return MediaQuery(
+                                data: MediaQuery.of(
+                                  context,
+                                ).copyWith(alwaysUse24HourFormat: true),
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: child!,
+                                ),
+                              );
+                            },
+                          );
+                          if (time != null) {
+                            setStateDialog(() {
+                              selectedEndDate = date;
+                              selectedEndTime = time;
+                            });
+                          }
+                        }
+                      },
+                      child: const Text('选择结束时间'),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      displayEndTime.isEmpty
+                          ? '未选择结束时间'
+                          : '结束: $displayEndTime',
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
                 ),
@@ -625,20 +851,78 @@ class TaskUtils {
                 if (onDelete != null)
                   TextButton(
                     onPressed: () async {
-                      Navigator.of(context).pop(); // 先关闭对话框
-                      await onDelete(); // 执行删除操作
+                      Navigator.of(context).pop();
+                      await onDelete();
                     },
                     child: const Text('删除'),
                   ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
                 FilledButton(
                   onPressed: () async {
-                    Navigator.of(context).pop(); // 先关闭对话框
+                    final finalStartTimeString = _formatDateTimeToString(
+                      selectedStartDate,
+                      selectedStartTime,
+                    );
+                    final finalEndTimeString = _formatDateTimeToString(
+                      selectedEndDate,
+                      selectedEndTime,
+                    );
+
+                    if (titleController.text.isEmpty) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('任务标题不能为空')));
+                      return;
+                    }
+                    if (finalStartTimeString.isEmpty) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('请选择开始时间')));
+                      return;
+                    }
+                    if (finalEndTimeString.isEmpty) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('请选择结束时间')));
+                      return;
+                    }
+
+                    if (selectedStartDate != null &&
+                        selectedStartTime != null &&
+                        selectedEndDate != null &&
+                        selectedEndTime != null) {
+                      final startDateTime = DateTime(
+                        selectedStartDate!.year,
+                        selectedStartDate!.month,
+                        selectedStartDate!.day,
+                        selectedStartTime!.hour,
+                        selectedStartTime!.minute,
+                      );
+                      final endDateTime = DateTime(
+                        selectedEndDate!.year,
+                        selectedEndDate!.month,
+                        selectedEndDate!.day,
+                        selectedEndTime!.hour,
+                        selectedEndTime!.minute,
+                      );
+                      if (startDateTime.isAfter(endDateTime)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('开始时间不能晚于结束时间')),
+                        );
+                        return;
+                      }
+                    }
+
                     await onConfirm(
-                      // 执行确认操作
                       titleController.text,
                       noteController.text,
-                      formattedDateTime(),
+                      finalStartTimeString,
+                      finalEndTimeString,
                     );
+                    Navigator.of(context).pop();
                   },
                   child: const Text('确认'),
                 ),

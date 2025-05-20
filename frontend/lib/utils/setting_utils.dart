@@ -9,6 +9,7 @@ class SettingUtils {
       SettingKeys.vibration: GlobalUtils.vibration,
       SettingKeys.archiveDays: GlobalUtils.archiveDays,
       SettingKeys.progressDirection: GlobalUtils.progressDirection,
+      SettingKeys.motivationalQuotes: GlobalUtils.motivationalQuotes, // 新增
       SettingKeys.fireworks: GlobalUtils.fireworks,
       SettingKeys.dynamicSchemeVariant: GlobalUtils.dynamicSchemeVariant,
       SettingKeys.accentColor: GlobalUtils.accentColor,
@@ -20,6 +21,8 @@ class SettingUtils {
     GlobalUtils.vibration = json[SettingKeys.vibration] as bool;
     GlobalUtils.archiveDays = json[SettingKeys.archiveDays] as int;
     GlobalUtils.progressDirection = json[SettingKeys.progressDirection] as bool;
+    GlobalUtils.motivationalQuotes =
+        json[SettingKeys.motivationalQuotes] as bool; // 新增
     GlobalUtils.fireworks = json[SettingKeys.fireworks] as bool;
     GlobalUtils.dynamicSchemeVariant =
         json[SettingKeys.dynamicSchemeVariant] as String;

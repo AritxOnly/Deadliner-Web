@@ -13,23 +13,38 @@ class SettingsModel extends ChangeNotifier {
   int _archiveDays = 7;
   DynamicSchemeVariant _dynamicSchemeVariant = DynamicSchemeVariant.rainbow;
   Color _accentColor = Colors.blue; // 默认强调色
+  bool _progressDirection = false; // 默认值
+  bool _motivationalQuotes = true; // 默认值
+  bool _fireworks = true; // 默认值
   // Add other settings properties if they exist in SettingUtils and need to be managed here
-  // For example:
-  // bool _progressDirection = true; // Assuming default
-  // bool _progressWidget = true; // Assuming default
-  // bool _motivationalQuotes = true; // Assuming default
-  // bool _fireworks = true; // Assuming default
 
   // Corresponding getters
-  // bool get progressDirection => _progressDirection;
-  // bool get progressWidget => _progressWidget;
-  // bool get motivationalQuotes => _motivationalQuotes;
-  // bool get fireworks => _fireworks;
+  bool get progressDirection => _progressDirection;
+  bool get motivationalQuotes => _motivationalQuotes;
+  bool get fireworks => _fireworks;
 
   bool get vibration => _vibration;
   int get archiveDays => _archiveDays;
   DynamicSchemeVariant get dynamicSchemeVariant => _dynamicSchemeVariant;
   Color get accentColor => _accentColor;
+
+  void toggleProgressDirection(bool value) {
+    _progressDirection = value;
+    notifyListeners();
+    _saveToPrefs();
+  }
+
+  void toggleMotivationalQuotes(bool value) {
+    _motivationalQuotes = value;
+    notifyListeners();
+    _saveToPrefs();
+  }
+
+  void toggleFireworks(bool value) {
+    _fireworks = value;
+    notifyListeners();
+    _saveToPrefs();
+  }
 
   void toggleVibration(bool value) {
     _vibration = value;
@@ -83,6 +98,9 @@ class SettingsModel extends ChangeNotifier {
     GlobalUtils.dynamicSchemeVariant = _dynamicSchemeVariant.toString();
     GlobalUtils.accentColor =
         _accentColor.value.toString(); // Store color as int string
+    GlobalUtils.progressDirection = _progressDirection;
+    GlobalUtils.motivationalQuotes = _motivationalQuotes;
+    GlobalUtils.fireworks = _fireworks;
 
     // 同步设置到后端
     final webUtils = WebUtils();
@@ -92,6 +110,9 @@ class SettingsModel extends ChangeNotifier {
         'archiveDays': _archiveDays,
         'dynamicSchemeVariant': _dynamicSchemeVariant.toString(),
         'accentColor': _accentColor.value.toString(),
+        'progressDirection': _progressDirection,
+        'motivationalQuotes': _motivationalQuotes,
+        'fireworks': _fireworks,
       };
       await webUtils.updateUserPrefs(webUtils.currentUser!, userPrefs);
     }
@@ -100,6 +121,9 @@ class SettingsModel extends ChangeNotifier {
   Future<void> loadPrefs() async {
     _vibration = GlobalUtils.vibration;
     _archiveDays = GlobalUtils.archiveDays;
+    _progressDirection = GlobalUtils.progressDirection;
+    _motivationalQuotes = GlobalUtils.motivationalQuotes;
+    _fireworks = GlobalUtils.fireworks;
     final String variantString = GlobalUtils.dynamicSchemeVariant;
     _dynamicSchemeVariant = DynamicSchemeVariant.values.firstWhere(
       (e) => e.toString() == variantString,
@@ -213,13 +237,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 children: [
                   _buildSwitchTile(
-                    '振动反馈',
+                    '启用震动反馈',
                     model.vibration,
                     model.toggleVibration,
                   ),
-                  _buildSwitchTile('进度方向', true, (_) {}),
-                  _buildSwitchTile('励志语录', true, (_) {}),
-                  _buildSwitchTile('完成动画', true, (_) {}),
+                  _buildSwitchTile(
+                    '主界面正向进度条',
+                    model.progressDirection,
+                    model.toggleProgressDirection,
+                  ),
+                  _buildSwitchTile(
+                    '主菜单鼓励语句',
+                    model.motivationalQuotes,
+                    model.toggleMotivationalQuotes,
+                  ),
+                  _buildSwitchTile(
+                    '完成时显示动画效果',
+                    model.fireworks,
+                    model.toggleFireworks,
+                  ),
                   _buildArchiveTimeSelector(),
                   _buildDynamicSchemeVariantSelector(),
                   _buildAccentColorSelector(), // 新增强调色选择器

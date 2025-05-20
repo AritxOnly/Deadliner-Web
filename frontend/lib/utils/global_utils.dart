@@ -136,16 +136,11 @@ class GlobalUtils {
     _prefsInstance.setString(SettingKeys.dynamicSchemeVariant, value);
   }
 
-  /// Accent color setting
-  static String get accentColor {
-    // Example default, confirm actual values and appropriate default
-    return _prefsInstance.getString(SettingKeys.accentColor) ??
-        Colors.blue.value.toString();
-  }
-
-  static set accentColor(String value) {
-    _prefsInstance.setString(SettingKeys.accentColor, value);
-  }
+  static String get accentColor =>
+      _prefsInstance.getString(SettingKeys.accentColor) ??
+      Colors.blue.value.toString(); // Default to blue if not set
+  static set accentColor(String value) =>
+      _prefsInstance.setString(SettingKeys.accentColor, value);
 
   /// Reset all settings to their defaults
   /// Note: This clears all SharedPreferences, then re-applies defaults for known keys.

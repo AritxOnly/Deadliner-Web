@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:frontend/utils/global_utils.dart';
 import 'package:frontend/utils/web_utils.dart';
 import 'package:frontend/models/ddl_item.dart';
+import 'package:frontend/models/deadline_type.dart'; // Add this import
 import 'dart:core';
+import 'package:graphic/graphic.dart' as graphic;
 
 class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
@@ -43,13 +45,22 @@ class _OverviewScreenState extends State<OverviewScreen> {
       final response = await webUtils.isWebAvailable();
       if (response) {
         final ddlItems = await webUtils.getAllDDLs();
-        _updateTaskData(ddlItems);
+        // Filter out archived tasks and habits, similar to TaskScreen
+        final filteredItems =
+            ddlItems.where((item) => item.type != DeadlineType.HABIT).toList();
+        _updateTaskData(filteredItems);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('无法连接到服务器')));
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('无法连接到服务器: $e')));
+        ).showSnackBar(SnackBar(content: Text('获取任务数据失败: $e')));
       }
     }
   }
@@ -60,79 +71,83 @@ class _OverviewScreenState extends State<OverviewScreen> {
       completedCount = 0;
       uncompletedCount = 0;
       overdueCount = 0;
-      timeSlots.updateAll((_, __) => 0);
+      timeSlots.updateAll((_, __) => 0); // Reset time slots
+
+      final now = DateTime.now();
 
       for (var item in items) {
-        final now = DateTime.now();
-        final startTime = GlobalUtils.safeParseDateTime(item.startTime);
         final endTime = GlobalUtils.safeParseDateTime(item.endTime);
-        final progress =
-            endTime.difference(now).inSeconds /
-            endTime.difference(startTime).inSeconds;
 
-        final task = {
+        if (item.isCompleted) {
+          completedCount++;
+          if (item.completeTime.isNotEmpty) {
+            _countTimeSlot(item.completeTime);
+          }
+        } else {
+          if (endTime != GlobalUtils.timeNull && endTime.isBefore(now)) {
+            overdueCount++;
+            _countTimeSlot(item.endTime); // For overdue, use endTime
+          } else {
+            uncompletedCount++;
+            // For uncompleted (and not overdue), we might not count them in time slots
+            // or use endTime if a specific behavior is desired.
+            // Based on Kotlin, only completed and overdue are counted for time slots.
+          }
+        }
+
+        // _taskData can be populated if still needed for other UI parts
+        // For simplicity, focusing on counts and time slots as per request
+        _taskData.add({
           'title': item.name,
           'note': item.note,
           'endTime': item.endTime,
-          'progress': progress,
-        };
-        _taskData.add(task);
-        _countTaskStatus(task);
-        _countTimeSlot(task['endTime'] as String);
+          // 'progress' is no longer calculated or used directly for status
+        });
       }
     });
   }
 
-  void _countTaskStatus(Map<String, dynamic> task) {
-    final endTime = DateTime.parse(task['endTime']);
-    final now = DateTime.now();
-
-    if (task['progress'] >= 1.0) {
-      completedCount++;
-    } else if (endTime.isBefore(now)) {
-      overdueCount++;
-    } else {
-      uncompletedCount++;
-    }
-  }
+  // _countTaskStatus is removed as its logic is integrated into _updateTaskData
 
   void _countTimeSlot(String timeString) {
-    final time = DateTime.parse(timeString);
-    final hour = time.hour;
+    final time = GlobalUtils.safeParseDateTime(timeString);
+    if (time == GlobalUtils.timeNull) return;
 
-    String slot = '凌晨';
-    if (hour >= 6 && hour < 9) {
-      slot = '早晨';
-    } else if (hour >= 9 && hour < 12) {
+    final hour = time.hour;
+    String slot;
+
+    if (hour >= 0 && hour < 6) {
+      slot = '凌晨';
+    } else if (hour < 9) {
+      slot = '早晨'; // use the same key as your map
+    } else if (hour < 12) {
       slot = '上午';
-    } else if (hour >= 12 && hour < 14) {
+    } else if (hour < 14) {
       slot = '中午';
-    } else if (hour >= 14 && hour < 18) {
+    } else if (hour < 18) {
       slot = '下午';
-    } else if (hour >= 18 && hour < 21) {
-      slot = '夜晚';
-    } else if (hour >= 21) {
+    } else if (hour < 21) {
+      slot = '夜晚'; // match your initial key
+    } else {
       slot = '深夜';
     }
 
-    timeSlots[slot] = timeSlots[slot]! + 1;
+    timeSlots[slot] = (timeSlots[slot] ?? 0) + 1;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildTaskStatusCard(),
-              const SizedBox(width: 40),
-              _buildTimeSlotCard(),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Center(
+        child: Row(
+          // mainAxisSize: MainAxisSize.min, // Allow Row to expand
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(child: _buildTaskStatusCard()),
+            const SizedBox(width: 40),
+            Expanded(child: _buildTimeSlotCard()),
+          ],
         ),
       ),
     );
@@ -154,7 +169,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
                 _buildStatusItem('已逾期', overdueCount, Colors.red),
               ],
             ),
-            const SizedBox(width: 100),
             _buildCustomPieChart(),
           ],
         ),
@@ -162,17 +176,72 @@ class _OverviewScreenState extends State<OverviewScreen> {
     );
   }
 
-  Widget _buildCustomPieChart() {
+  /// 生成饼图需要的数据
+  List<Map<String, dynamic>> _computePieData() {
+    // 三种状态总数
     final total = completedCount + uncompletedCount + overdueCount;
+
+    // 如果总数为 0，返回一个表示无数据的占位数据
+    if (total == 0) {
+      return [
+        {'status': '无数据', 'value': 1.0, 'color': Colors.grey[300]!},
+      ];
+    }
+
+    // 否则计算占比（value 在 0.0～1.0 之间）
+    return [
+      {'status': '已完成', 'value': completedCount / total, 'color': Colors.green},
+      {
+        'status': '未完成',
+        'value': uncompletedCount / total,
+        'color': Colors.orange,
+      },
+      {'status': '已逾期', 'value': overdueCount / total, 'color': Colors.red},
+    ];
+  }
+
+  Widget _buildCustomPieChart() {
+    final data = _computePieData();
+    final total = completedCount + uncompletedCount + overdueCount;
+
     return SizedBox(
       width: 150,
       height: 150,
-      child: CustomPaint(
-        painter: _PieChartPainter(
-          completed: total == 0 ? 0 : completedCount / total,
-          uncompleted: total == 0 ? 0 : uncompletedCount / total,
-          overdue: total == 0 ? 0 : overdueCount / total,
-        ),
+      child: graphic.Chart(
+        data: data,
+        variables: {
+          'status': graphic.Variable(
+            accessor: (Map map) => map['status'] as String,
+          ),
+          'value': graphic.Variable(accessor: (Map map) => map['value'] as num),
+        },
+        transforms: [graphic.Proportion(variable: 'value', as: 'percent')],
+        marks: [
+          graphic.IntervalMark(
+            position: graphic.Varset('percent') / graphic.Varset('status'),
+            color: graphic.ColorEncode(
+              variable: 'status',
+              values: data.map((e) => e['color'] as Color).toList(),
+              updaters: {
+                'group': {true: (attributes) => attributes..withOpacity(0.5)},
+              },
+            ),
+            modifiers: [graphic.StackModifier()],
+            label: graphic.LabelEncode(
+              encoder: (tuple) {
+                // 当 total 为 0 时，不显示标签
+                if (total == 0) {
+                  return graphic.Label('');
+                }
+                return graphic.Label(
+                  tuple['status'].toString(),
+                  graphic.LabelStyle(textStyle: const TextStyle(fontSize: 10)),
+                );
+              },
+            ),
+          ),
+        ],
+        coord: graphic.PolarCoord(transposed: true, dimCount: 1),
       ),
     );
   }
@@ -287,54 +356,4 @@ class _OverviewScreenState extends State<OverviewScreen> {
     ];
     return colors[timeSlots.keys.toList().indexOf(timeSlot)];
   }
-}
-
-class _PieChartPainter extends CustomPainter {
-  final double completed;
-  final double uncompleted;
-  final double overdue;
-
-  _PieChartPainter({
-    required this.completed,
-    required this.uncompleted,
-    required this.overdue,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final radius = size.width / 2;
-    final center = Offset(radius, radius);
-    var startAngle = -90.0 * (3.14 / 180);
-
-    _drawArc(canvas, center, radius, startAngle, completed, Colors.green);
-    startAngle += completed * 2 * 3.14;
-    _drawArc(canvas, center, radius, startAngle, uncompleted, Colors.orange);
-    startAngle += uncompleted * 2 * 3.14;
-    _drawArc(canvas, center, radius, startAngle, overdue, Colors.red);
-  }
-
-  void _drawArc(
-    Canvas canvas,
-    Offset center,
-    double radius,
-    double startAngle,
-    double sweep,
-    Color color,
-  ) {
-    final paint =
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.fill;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweep,
-      true,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

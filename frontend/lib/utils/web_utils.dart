@@ -32,6 +32,7 @@ class WebUtils {
   String get ddlItemsUrl => '$baseUrl/db/items';
   String get registerUrl => '$baseUrl/auth/register';
   String get loginUrl => '$baseUrl/auth/login';
+  String get aiPlanUrl => '$baseUrl/ai/plan';
   String userPrefsUrl(String username) => '$baseUrl/user/$username/prefs';
 
   /// 获取认证头
@@ -330,5 +331,43 @@ class WebUtils {
     );
 
     return response.statusCode == 200;
+  }
+
+  Future<String> getAIResponse(int id) async {
+    final response = await client.get(
+      Uri.parse('$aiPlanUrl/$id'),
+      headers: _headers,
+    );
+
+    print('AI Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      // 根据新的响应格式解析
+      // 新格式: {"choices":[{"message":{"content":"..."}}], ...}
+      if (data.containsKey('choices') &&
+          data['choices'] is List &&
+          (data['choices'] as List).isNotEmpty) {
+        final firstChoice = data['choices'][0];
+        if (firstChoice is Map<String, dynamic> &&
+            firstChoice.containsKey('message')) {
+          final message = firstChoice['message'];
+          if (message is Map<String, dynamic> &&
+              message.containsKey('content')) {
+            return message['content'] as String;
+          }
+        }
+      }
+      // 如果无法按新格式解析，尝试旧格式或抛出错误
+      if (data.containsKey('response')) {
+        return data['response'];
+      } else {
+        throw Exception('Failed to parse AI response: Unexpected format');
+      }
+    } else {
+      throw Exception(
+        'Failed to get AI response. Status code: ${response.statusCode}',
+      );
+    }
   }
 }

@@ -49,6 +49,8 @@ class _HomePageState extends State<HomePage> {
   late bool showNavigationDrawer;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late String _randomQuote;
+  bool _isScreenOverlayVisible = false;
+  int _targetScreenIndex = 0;
 
   final List<String> _motivationQuotes = [
     'Deadline 在追杀你！快跑💨',
@@ -80,6 +82,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _selectRandomQuote();
+    _targetScreenIndex = screenIndex; // Initialize _targetScreenIndex
   }
 
   void _selectRandomQuote() {
@@ -94,8 +97,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleScreenChanged(int selectedScreen) {
+    if (selectedScreen == screenIndex && !_isScreenOverlayVisible) return;
+
     setState(() {
-      screenIndex = selectedScreen;
+      _targetScreenIndex = selectedScreen;
+      _isScreenOverlayVisible = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          screenIndex = _targetScreenIndex;
+          // Start fading out the overlay after the content is set to switch
+          // The actual fade out is handled by AnimatedOpacity's reaction to _isScreenOverlayVisible changing
+        });
+        // Delayed hiding of overlay to allow fade-out animation
+        Future.delayed(const Duration(milliseconds: 50), () {
+          // Small delay before triggering fade out
+          if (mounted) {
+            setState(() {
+              _isScreenOverlayVisible = false;
+            });
+          }
+        });
+      }
     });
   }
 
@@ -230,7 +255,21 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppBar(
-                    title: Text(_getScreenTitle()),
+                    title: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (
+                        Widget child,
+                        Animation<double> animation,
+                      ) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                      child: Text(
+                        _getScreenTitle(),
+                        key: ValueKey<String>(
+                          _getScreenTitle(),
+                        ), // Use title string as key
+                      ),
+                    ),
                     actions: _buildActions(),
                     centerTitle: false,
                   ),
@@ -271,7 +310,16 @@ class _HomePageState extends State<HomePage> {
   Widget _buildMobileLayout() {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getScreenTitle()),
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          child: Text(
+            _getScreenTitle(),
+            key: ValueKey<String>(_getScreenTitle()), // Use title string as key
+          ),
+        ),
         actions: _buildActions(),
         centerTitle: false,
         leading: Builder(
@@ -322,20 +370,48 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCurrentScreen() {
+    Widget screen;
     switch (screenIndex) {
       case 0:
-        return const TaskScreen();
+        screen = const TaskScreen();
+        break;
       case 1:
-        return const HabitScreen();
+        screen = const HabitScreen();
+        break;
       case 2:
-        return const OverviewScreen();
+        screen = const OverviewScreen();
+        break;
       case 3:
-        return const AIScreen();
+        screen = const AIScreen();
+        break;
       case 4:
-        return const SettingsScreen();
+        screen = const SettingsScreen();
+        break;
       default:
-        return const TaskScreen();
+        screen = const TaskScreen();
+        break;
     }
+
+    Widget screenSwitcher = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      child: SizedBox(key: ValueKey<int>(screenIndex), child: screen),
+    );
+
+    return Stack(
+      children: [
+        screenSwitcher,
+        AnimatedOpacity(
+          opacity: _isScreenOverlayVisible ? 1.0 : 0.0,
+          duration: const Duration(
+            milliseconds: 200,
+          ), // Overlay fade-out duration
+          child: Container(color: Theme.of(context).colorScheme.surface),
+        ),
+      ],
+    );
   }
 
   @override

@@ -403,12 +403,18 @@ class _HomePageState extends State<HomePage> {
     return Stack(
       children: [
         screenSwitcher,
-        AnimatedOpacity(
-          opacity: _isScreenOverlayVisible ? 1.0 : 0.0,
-          duration: const Duration(
-            milliseconds: 200,
-          ), // Overlay fade-out duration
-          child: Container(color: Theme.of(context).colorScheme.surface),
+        IgnorePointer(
+          ignoring:
+              !_isScreenOverlayVisible, // When overlay is visible, don't ignore pointer events for the overlay itself, but allow events to pass through when it's not visible.
+          child: AnimatedOpacity(
+            opacity: _isScreenOverlayVisible ? 1.0 : 0.0,
+            duration: const Duration(
+              milliseconds: 200,
+            ), // Overlay fade-out duration
+            child: Container(
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+            ), // Added transparency to see content below
+          ),
         ),
       ],
     );

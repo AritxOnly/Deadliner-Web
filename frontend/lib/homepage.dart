@@ -48,9 +48,15 @@ class _HomePageState extends State<HomePage> {
   int screenIndex = 0;
   late bool showNavigationDrawer;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<TaskScreenState> _taskScreenKey =
+      GlobalKey<TaskScreenState>();
   late String _randomQuote;
   bool _isScreenOverlayVisible = false;
   int _targetScreenIndex = 0;
+
+  // State for TaskScreen multi-select mode
+  bool _isTaskMultiSelectMode = false;
+  int _taskSelectionCount = 0;
 
   final List<String> _motivationQuotes = [
     'Deadline 在追杀你！快跑💨',
@@ -129,10 +135,80 @@ class _HomePageState extends State<HomePage> {
     return destinations[screenIndex].label;
   }
 
+  void _handleTaskMultiSelectModeChanged(
+    bool isMultiSelect,
+    int selectionCount,
+  ) {
+    if (mounted) {
+      setState(() {
+        _isTaskMultiSelectMode = isMultiSelect;
+        _taskSelectionCount = selectionCount;
+      });
+    }
+  }
+
   // 构建操作按钮
   List<Widget> _buildActions() {
-    // 只在任务和习惯页面显示工具栏图标（screenIndex为0或1）
-    if (screenIndex == 0 || screenIndex == 1) {
+    // 只在任务页面 (screenIndex为0) 并且是桌面布局时，根据多选模式显示不同按钮
+    if (screenIndex == 0 && showNavigationDrawer) {
+      // Assuming showNavigationDrawer implies desktop/wider layout
+      if (_isTaskMultiSelectMode) {
+        return [
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: '退出多选',
+            onPressed: () {
+              _taskScreenKey.currentState?.handleRequestToggleMultiSelectMode();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: '删除选中',
+            onPressed:
+                _taskSelectionCount > 0
+                    ? () {
+                      _taskScreenKey.currentState
+                          ?.handleRequestDeleteSelected();
+                    }
+                    : null,
+          ),
+        ];
+      } else {
+        return [
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: '用户',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const UsersPage()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.search_outlined),
+            tooltip: '搜索',
+            onPressed: () {
+              // TODO: 实现搜索功能
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_outlined),
+            tooltip: '多选删除',
+            onPressed: () {
+              _taskScreenKey.currentState?.handleRequestToggleMultiSelectMode();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.more_vert_outlined),
+            tooltip: '更多',
+            onPressed: () {
+              // TODO: 实现更多功能
+            },
+          ),
+        ];
+      }
+    } else if (screenIndex == 1) {
+      // 习惯页面
       return [
         IconButton(
           icon: const Icon(Icons.account_circle_outlined),
@@ -150,13 +226,7 @@ class _HomePageState extends State<HomePage> {
             // TODO: 实现搜索功能
           },
         ),
-        IconButton(
-          icon: const Icon(Icons.delete_outlined),
-          tooltip: '删除',
-          onPressed: () {
-            // TODO: 实现删除功能
-          },
-        ),
+        // No delete sweep for habits for now
         IconButton(
           icon: const Icon(Icons.more_vert_outlined),
           tooltip: '更多',
@@ -166,8 +236,17 @@ class _HomePageState extends State<HomePage> {
         ),
       ];
     } else {
-      // 在概览页面不显示工具栏图标
+      // 其他页面 (概览, AI规划, 设置)
       return [
+        IconButton(
+          icon: const Icon(Icons.account_circle_outlined),
+          tooltip: '用户',
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (context) => const UsersPage()));
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.more_vert_outlined),
           tooltip: '更多',
@@ -373,7 +452,11 @@ class _HomePageState extends State<HomePage> {
     Widget screen;
     switch (screenIndex) {
       case 0:
-        screen = const TaskScreen();
+        screen = TaskScreen(
+          key: _taskScreenKey, // Assign the key
+          onMultiSelectModeChanged: _handleTaskMultiSelectModeChanged,
+          // requestDeleteSelected and requestToggleMultiSelectMode are handled by AppBar actions calling _taskScreenKey.currentState methods
+        );
         break;
       case 1:
         screen = const HabitScreen();

@@ -3,6 +3,7 @@ import 'package:frontend/homepage.dart';
 import 'package:frontend/screens/setting_screen.dart';
 import 'package:frontend/utils/auth_utils.dart';
 import 'package:frontend/screens/users_page.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/utils/global_utils.dart';
 
@@ -25,7 +26,7 @@ class DeadlinerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsModel>();
     return MaterialApp(
-      title: 'Deadliner-Web',
+      title: 'Deadliner',
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
@@ -35,6 +36,7 @@ class DeadlinerApp extends StatelessWidget {
           dynamicSchemeVariant: settings.dynamicSchemeVariant,
           // DynamicSchemeVariant.expressive
         ),
+        fontFamily: 'MiSans',
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
@@ -44,6 +46,7 @@ class DeadlinerApp extends StatelessWidget {
           brightness: Brightness.dark,
           dynamicSchemeVariant: settings.dynamicSchemeVariant,
         ),
+        fontFamily: 'MiSans',
       ),
       themeMode: ThemeMode.system,
       home: const MyApp(),

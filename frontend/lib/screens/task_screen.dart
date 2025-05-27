@@ -5,22 +5,43 @@ import 'package:frontend/utils/web_utils.dart';
 import 'package:frontend/utils/global_utils.dart';
 import 'package:frontend/models/ddl_item.dart';
 import 'package:http/http.dart';
+import 'package:confetti/confetti.dart';
 
 class TaskScreen extends StatefulWidget {
-  const TaskScreen({super.key});
+  final Function(bool isMultiSelect, int selectionCount)?
+  onMultiSelectModeChanged;
+  final VoidCallback? requestDeleteSelected;
+  final VoidCallback? requestToggleMultiSelectMode;
+
+  const TaskScreen({
+    super.key,
+    this.onMultiSelectModeChanged,
+    this.requestDeleteSelected,
+    this.requestToggleMultiSelectMode,
+  });
 
   @override
-  State<TaskScreen> createState() => _TaskScreenState();
+  State<TaskScreen> createState() => TaskScreenState();
 }
 
-class _TaskScreenState extends State<TaskScreen> {
+class TaskScreenState extends State<TaskScreen> {
   final List<Map<String, dynamic>> _taskData = [];
   late WebUtils webUtils;
+  late ConfettiController _confettiController;
+  bool _isMultiSelectMode = false;
+  final List<int> _selectedTaskIndexes = [];
 
   void _sortTaskData() {
-    _taskData.sort(
-      (a, b) => (a['progress'] as double).compareTo(b['progress'] as double),
-    );
+    _taskData.sort((a, b) {
+      final bool aCompleted = a['isCompleted'] as bool;
+      final bool bCompleted = b['isCompleted'] as bool;
+      if (aCompleted != bCompleted) {
+        return aCompleted ? 1 : -1;
+      }
+      final double aProgress = a['progress'] as double;
+      final double bProgress = b['progress'] as double;
+      return bProgress.compareTo(aProgress);
+    });
   }
 
   void exampleInit() {
@@ -47,8 +68,10 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   void initState() {
     super.initState();
-
     webUtils = WebUtils();
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 1),
+    );
 
     // 启动第二个线程尝试连接API服务器
     Future<void> initializeConnection() async {
@@ -68,7 +91,9 @@ class _TaskScreenState extends State<TaskScreen> {
 
               // 计算进度
               double progress = 0.0;
-              if (startTime != GlobalUtils.timeNull &&
+              if (item.isCompleted) {
+                progress = 0.0; // 已完成的任务进度为0
+              } else if (startTime != GlobalUtils.timeNull &&
                   endTime != GlobalUtils.timeNull) {
                 // 如果当前时间在开始时间之前，进度为0
                 if (now.isBefore(startTime)) {
@@ -97,9 +122,6 @@ class _TaskScreenState extends State<TaskScreen> {
                 continue; // 跳过已归档或习惯类型的任务
               }
 
-              progress =
-                  GlobalUtils.progressDirection ? (1.0 - progress) : progress;
-
               // 将DDLItem转换为任务数据格式
               _taskData.add({
                 'id': item.id, // 保存ID以便后续更新和删除
@@ -108,6 +130,8 @@ class _TaskScreenState extends State<TaskScreen> {
                 'startTime': item.startTime, // Added
                 'endTime': item.endTime, // Added
                 'progress': progress,
+                'isCompleted': item.isCompleted, // Added
+                'completeTime': item.completeTime, // Added
               });
             }
             _sortTaskData(); // Sort after fetching DDLs
@@ -124,6 +148,58 @@ class _TaskScreenState extends State<TaskScreen> {
     }
 
     initializeConnection();
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _completeTask(int index) async {
+    if (_isMultiSelectMode) return; // Disable complete in multi-select mode
+    final task = _taskData[index];
+    final taskId = task['id'];
+    if (taskId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('任务ID不存在，无法完成任务')));
+      }
+      return;
+    }
+
+    final nowString = DateTime.now().toIso8601String();
+    final Map<String, dynamic> updates = {
+      'isCompleted': true,
+      'completeTime': nowString,
+      // 'progress': 0.0, // 后端可能会根据isCompleted自动处理，或者我们在这里也发送
+    };
+
+    try {
+      final success = await webUtils.updateDDL(taskId, updates);
+      if (success) {
+        setState(() {
+          _taskData[index]['isCompleted'] = true;
+          _taskData[index]['completeTime'] = nowString;
+          _taskData[index]['progress'] = 0.0; // 客户端也将进度设置为0
+          _sortTaskData(); // 重新排序，已完成的会到前面（因为progress为0）
+        });
+        if (GlobalUtils.fireworks) _confettiController.play();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('标记任务完成失败')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('标记任务完成时出错: $e')));
+      }
+    }
   }
 
   Future<void> addTask(
@@ -188,6 +264,8 @@ class _TaskScreenState extends State<TaskScreen> {
           'startTime': startTimeText, // MODIFIED
           'endTime': endTimeText, // MODIFIED
           'progress': progress,
+          'isCompleted': false, // New tasks are not completed
+          'completeTime': '', // No complete time for new tasks
         });
         _sortTaskData();
       });
@@ -231,14 +309,18 @@ class _TaskScreenState extends State<TaskScreen> {
         'note': note,
         'startTime': startTimeText, // MODIFIED - Assuming API supports this
         'endTime': endTimeText, // MODIFIED
+        // isCompleted and completeTime are not changed here, only by _completeTask
       };
 
       final success = await webUtils.updateDDL(taskId, updates);
 
       if (success) {
         double progress = 0.0;
-        // Use the new start and end times for progress calculation
-        if (newStartDateTime != GlobalUtils.timeNull &&
+        bool isCompleted = _taskData[index]['isCompleted'] ?? false;
+
+        if (isCompleted) {
+          progress = 0.0; // If already completed, progress remains 0
+        } else if (newStartDateTime != GlobalUtils.timeNull &&
             newEndDateTime != GlobalUtils.timeNull) {
           if (now.isBefore(newStartDateTime)) {
             progress = 0.0;
@@ -266,6 +348,7 @@ class _TaskScreenState extends State<TaskScreen> {
           _taskData[index]['startTime'] = startTimeText; // MODIFIED
           _taskData[index]['endTime'] = endTimeText; // MODIFIED
           _taskData[index]['progress'] = progress;
+          // isCompleted and completeTime remain unchanged by this method
           _sortTaskData();
         });
       } else {
@@ -281,32 +364,141 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Future<void> deleteTask(int index) async {
+    // This individual delete might still be used by the edit dialog
+    // Or we can choose to remove it if all deletions go through multi-select
     try {
-      // 获取任务ID
       final taskId = _taskData[index]['id'];
       if (taskId == null) {
         throw Exception('任务ID不存在');
       }
-
-      // 调用API删除任务
       final success = await webUtils.deleteDDL(taskId);
-
       if (success) {
-        // 更新UI
         setState(() {
           _taskData.removeAt(index);
+          // If in multi-select mode, also remove from selected indexes if present
+          _selectedTaskIndexes.remove(index);
+          // Adjust other selected indexes if they were after the deleted one
+          for (int i = 0; i < _selectedTaskIndexes.length; i++) {
+            if (_selectedTaskIndexes[i] > index) {
+              _selectedTaskIndexes[i]--;
+            }
+          }
         });
       } else {
         throw Exception('删除任务失败');
       }
     } catch (e) {
-      // 处理错误
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('删除任务失败: $e')));
       }
     }
+  }
+
+  void _toggleMultiSelectMode() {
+    setState(() {
+      _isMultiSelectMode = !_isMultiSelectMode;
+      if (!_isMultiSelectMode) {
+        _selectedTaskIndexes.clear();
+      }
+    });
+    widget.onMultiSelectModeChanged?.call(
+      _isMultiSelectMode,
+      _selectedTaskIndexes.length,
+    );
+    // This call might be redundant if HomePage directly calls _toggleMultiSelectMode via a new callback
+    // For now, let's assume HomePage has a button that calls requestToggleMultiSelectMode, which in turn calls this.
+    // Or, HomePage listens to onMultiSelectModeChanged and updates its UI, and provides buttons that call requestDeleteSelected or requestToggleMultiSelectMode.
+  }
+
+  void _toggleTaskSelection(int index) {
+    setState(() {
+      if (_selectedTaskIndexes.contains(index)) {
+        _selectedTaskIndexes.remove(index);
+      } else {
+        _selectedTaskIndexes.add(index);
+      }
+    });
+    widget.onMultiSelectModeChanged?.call(
+      _isMultiSelectMode,
+      _selectedTaskIndexes.length,
+    );
+  }
+
+  Future<void> _deleteSelectedTasks() async {
+    if (_selectedTaskIndexes.isEmpty) return;
+
+    List<int> idsToDelete = [];
+    List<int> successfullyDeletedIndexes = []; // Store original indexes
+
+    // Sort indexes in descending order to avoid issues when removing items
+    _selectedTaskIndexes.sort((a, b) => b.compareTo(a));
+
+    for (int index in _selectedTaskIndexes) {
+      final taskId = _taskData[index]['id'];
+      if (taskId != null) {
+        idsToDelete.add(taskId);
+      }
+    }
+
+    bool allSucceeded = true;
+    for (int id in idsToDelete) {
+      try {
+        final success = await webUtils.deleteDDL(id);
+        if (!success) {
+          allSucceeded = false;
+          // Optionally, collect failed IDs or show individual error messages
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('删除任务ID $id 失败')));
+          }
+        }
+      } catch (e) {
+        allSucceeded = false;
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('删除任务ID $id 时出错: $e')));
+        }
+      }
+    }
+
+    if (allSucceeded || _selectedTaskIndexes.isNotEmpty) {
+      // Proceed to update UI if any attempt was made or some succeeded
+      setState(() {
+        for (int index in _selectedTaskIndexes) {
+          // Check if the task at this index still exists (it might have been shifted by previous deletions)
+          // This logic is complex due to index shifting. A safer way is to remove by ID or re-fetch.
+          // For now, we assume _selectedTaskIndexes are original indexes and remove them carefully.
+          // This part needs careful handling of indexes if not all deletions succeed or if _taskData is modified elsewhere.
+        }
+        // A simpler way to update _taskData after deletions:
+        _taskData.removeWhere((task) => idsToDelete.contains(task['id']));
+        _selectedTaskIndexes.clear();
+        _isMultiSelectMode = false;
+        _sortTaskData();
+      });
+      if (mounted && !allSucceeded) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('部分任务删除失败，请检查')));
+      } else if (mounted && allSucceeded && idsToDelete.isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('选定任务已删除')));
+      }
+    }
+  }
+
+  // Expose methods to be called by HomePage via callbacks
+  void handleRequestToggleMultiSelectMode() {
+    _toggleMultiSelectMode();
+  }
+
+  void handleRequestDeleteSelected() {
+    _deleteSelectedTasks();
   }
 
   @override
@@ -322,70 +514,119 @@ class _TaskScreenState extends State<TaskScreen> {
       crossAxisCount = 1;
     }
 
-    return Expanded(
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: GridView.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 3, // 控制任务卡片比例，宽高比为3:1
-              ),
-              itemCount: _taskData.length,
-              itemBuilder: (context, index) {
-                final task = _taskData[index];
-                return DDLItemWidget(
-                  title: task['title'],
-                  note: task['note'],
-                  startTime: task['startTime'] as String,
-                  endTime: task['endTime'] as String,
-                  progress: task['progress'],
-                  onTap: () {
+    // Removed Scaffold and AppBar from here
+    return Stack(
+      alignment: Alignment.topCenter, // For Confetti
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: GridView.builder(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 3, // 控制任务卡片比例，宽高比为3:1
+            ),
+            itemCount: _taskData.length,
+            itemBuilder: (context, index) {
+              final task = _taskData[index];
+              final bool isSelected = _selectedTaskIndexes.contains(index);
+              return DDLItemWidget(
+                title: task['title'],
+                note: task['note'],
+                startTime: task['startTime'] as String,
+                endTime: task['endTime'] as String,
+                progress: task['progress'],
+                isCompleted: task['isCompleted'] ?? false,
+                isSelected: isSelected,
+                onTap: () {
+                  if (_isMultiSelectMode) {
+                    _toggleTaskSelection(index);
+                  } else {
+                    if (task['isCompleted'] ?? false) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('已完成的任务不能编辑')),
+                      );
+                      return;
+                    }
                     TaskUtils.showEditDialog(
                       context,
                       initialTitle: task['title'],
                       initialNote: task['note'],
-                      initialStartTime: task['startTime'] as String, // MODIFIED
-                      initialEndTime: task['endTime'] as String, // MODIFIED
+                      initialStartTime: task['startTime'] as String,
+                      initialEndTime: task['endTime'] as String,
                       onConfirm: (
                         newTitle,
                         newNote,
                         newStartTime,
                         newEndTime,
                       ) async {
-                        // MODIFIED
                         await updateTask(
                           index,
                           newTitle,
                           newNote,
                           newStartTime,
                           newEndTime,
-                        ); // MODIFIED
+                        );
                       },
                       onDelete: () async {
                         await deleteTask(index);
                       },
                     );
-                  },
-                );
-              },
-            ),
+                  }
+                },
+                onLongPress: () {
+                  if (_isMultiSelectMode) {
+                    _toggleTaskSelection(index);
+                  } else {
+                    _completeTask(index);
+                  }
+                },
+                onSelectToggle: () => _toggleTaskSelection(index),
+              );
+            },
           ),
-          Positioned(
-            right: 16,
-            bottom: 16,
-            child: FloatingActionButton(
-              onPressed: () {
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            onPressed: () {
+              if (_isMultiSelectMode) {
+                // This FAB will now call the exposed method if HomePage needs to trigger it
+                // For now, it directly calls _deleteSelectedTasks. If AppBar in HomePage handles delete,
+                // this FAB might need a different role or be hidden in multi-select mode by HomePage.
+                // Let's assume FAB's delete action is still managed here for simplicity of this step.
+                _deleteSelectedTasks();
+              } else {
                 TaskUtils.onFABPressed(context, onTaskAdd: addTask);
-              },
-              child: const Icon(Icons.add),
-            ),
+              }
+            },
+            child: Icon(_isMultiSelectMode ? Icons.delete : Icons.add),
+            backgroundColor:
+                _isMultiSelectMode && _selectedTaskIndexes.isEmpty
+                    ? Colors.grey
+                    : null,
           ),
-        ],
-      ),
+        ),
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confettiController,
+            blastDirectionality: BlastDirectionality.explosive,
+            shouldLoop: false,
+            colors: const [
+              Colors.green,
+              Colors.blue,
+              Colors.pink,
+              Colors.orange,
+              Colors.purple,
+            ],
+            numberOfParticles: 20,
+            gravity: 0.1,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -396,7 +637,11 @@ class DDLItemWidget extends StatelessWidget {
   final String endTime;
   final String note;
   final double progress;
+  final bool isCompleted;
+  final bool isSelected; // New parameter
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onSelectToggle; // New parameter
 
   const DDLItemWidget({
     super.key,
@@ -405,10 +650,17 @@ class DDLItemWidget extends StatelessWidget {
     required this.endTime,
     this.note = "",
     required this.progress,
+    required this.isCompleted,
+    required this.isSelected, // New
     this.onTap,
+    this.onLongPress,
+    this.onSelectToggle, // New
   });
 
   String _getRemainingTimeText() {
+    if (isCompleted) {
+      return '已完成';
+    }
     final now = DateTime.now();
     final endDateTime = GlobalUtils.safeParseDateTime(endTime);
 
@@ -417,22 +669,22 @@ class DDLItemWidget extends StatelessWidget {
         return '已截止';
       } else {
         final remaining = endDateTime.difference(now);
-        final remainingMinutes = remaining.inMinutes;
-        final actualRemainingDays = remaining.inMinutes / (60 * 24);
-        final actualRemainingHours = (remaining.inMinutes / 60) % 24;
-        final actualRemainingMinutes = remaining.inMinutes % 60;
-        print(
-          '$actualRemainingDays $actualRemainingHours $actualRemainingMinutes',
-        );
+        // final remainingMinutes = remaining.inMinutes;
+        // final actualRemainingDays = remaining.inMinutes / (60 * 24);
+        // final actualRemainingHours = (remaining.inMinutes / 60) % 24;
+        // final actualRemainingMinutes = remaining.inMinutes % 60;
+        // print(
+        //   '$actualRemainingDays $actualRemainingHours $actualRemainingMinutes',
+        // );
 
-        if (remainingMinutes <= 0) {
+        if (remaining.inMinutes <= 0) {
           return '已截止';
-        } else if (remainingMinutes < 60) {
-          return '剩余 $remainingMinutes 分钟';
-        } else if (remainingMinutes < 60 * 24) {
+        } else if (remaining.inMinutes < 60) {
+          return '剩余 ${remaining.inMinutes} 分钟';
+        } else if (remaining.inMinutes < 60 * 24) {
           return '剩余 ${remaining.inHours} 小时 ${remaining.inMinutes % 60} 分钟';
         } else {
-          return '剩余 ${remaining.inDays} 天 ${remaining.inHours % 24} 小时 ${remaining.inMinutes % 60} 分钟';
+          return '剩余 ${remaining.inDays} 天 ${remaining.inHours % 24} 小时'; // Simplified for brevity
         }
       }
     }
@@ -442,7 +694,9 @@ class DDLItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap, // onTap will handle selection in multi-select mode
+      onLongPress:
+          onLongPress, // onLongPress will handle selection in multi-select or complete task
       child: Card(
         elevation: 0, // 去掉阴影
         margin: const EdgeInsets.symmetric(
@@ -450,9 +704,15 @@ class DDLItemWidget extends StatelessWidget {
           vertical: 10,
         ), // 加大 margin
         shape: RoundedRectangleBorder(
+          side:
+              isSelected
+                  ? BorderSide(color: Theme.of(context).primaryColor, width: 2)
+                  : BorderSide.none,
           borderRadius: BorderRadius.circular(24), // 圆角更大
         ),
         clipBehavior: Clip.hardEdge,
+        color:
+            isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
         child: Container(
           padding: const EdgeInsets.all(16),
           height: 110,
@@ -514,10 +774,16 @@ class DDLItemWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: LinearProgressIndicator(
-        value: 1.0 - progress,
+        value:
+            isCompleted
+                ? 0.0
+                : (GlobalUtils.progressDirection
+                    ? progress
+                    : 1.0 - progress), // Adjusted for completion and direction
         minHeight: 6,
         borderRadius: BorderRadius.circular(6),
-        color: Theme.of(context).colorScheme.primary,
+        color:
+            isCompleted ? Colors.grey : Theme.of(context).colorScheme.primary,
         backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
       ),
     );

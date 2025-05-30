@@ -58,6 +58,11 @@ class _HomePageState extends State<HomePage> {
   bool _isTaskMultiSelectMode = false;
   int _taskSelectionCount = 0;
 
+  // State for Search
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   final List<String> _motivationQuotes = [
     'Deadline 在追杀你！快跑💨',
     '任务完成度：1% → 99%🤯',
@@ -89,6 +94,19 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _selectRandomQuote();
     _targetScreenIndex = screenIndex; // Initialize _targetScreenIndex
+    _searchController.addListener(() {
+      if (mounted) {
+        setState(() {
+          _searchQuery = _searchController.text;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _selectRandomQuote() {
@@ -188,7 +206,9 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.search_outlined),
             tooltip: '搜索',
             onPressed: () {
-              // TODO: 实现搜索功能
+              setState(() {
+                _isSearching = true;
+              });
             },
           ),
           IconButton(
@@ -208,7 +228,7 @@ class _HomePageState extends State<HomePage> {
         ];
       }
     } else if (screenIndex == 1) {
-      // 习惯页面
+      // Habit screen
       return [
         IconButton(
           icon: const Icon(Icons.account_circle_outlined),
@@ -221,22 +241,23 @@ class _HomePageState extends State<HomePage> {
         ),
         IconButton(
           icon: const Icon(Icons.search_outlined),
-          tooltip: '搜索',
+          tooltip: '搜索 (不可用)',
           onPressed: () {
-            // TODO: 实现搜索功能
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('搜索功能仅在任务页面可用')));
           },
         ),
-        // No delete sweep for habits for now
         IconButton(
           icon: const Icon(Icons.more_vert_outlined),
           tooltip: '更多',
           onPressed: () {
-            // TODO: 实现更多功能
+            // TODO: Implement more options
           },
         ),
       ];
     } else {
-      // 其他页面 (概览, AI规划, 设置)
+      // Overview, AI, Settings screens
       return [
         IconButton(
           icon: const Icon(Icons.account_circle_outlined),
@@ -248,10 +269,19 @@ class _HomePageState extends State<HomePage> {
           },
         ),
         IconButton(
+          icon: const Icon(Icons.search_outlined),
+          tooltip: '搜索 (不可用)',
+          onPressed: () {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('搜索功能仅在任务页面可用')));
+          },
+        ),
+        IconButton(
           icon: const Icon(Icons.more_vert_outlined),
           tooltip: '更多',
           onPressed: () {
-            // TODO: 实现更多功能
+            // TODO: Implement more options
           },
         ),
       ];
@@ -334,22 +364,63 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppBar(
-                    title: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (
-                        Widget child,
-                        Animation<double> animation,
-                      ) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
-                      child: Text(
-                        _getScreenTitle(),
-                        key: ValueKey<String>(
-                          _getScreenTitle(),
-                        ), // Use title string as key
-                      ),
-                    ),
-                    actions: _buildActions(),
+                    title:
+                        _isSearching && screenIndex == 0
+                            ? TextField(
+                              controller: _searchController,
+                              autofocus: true,
+                              decoration: InputDecoration(
+                                hintText: '搜索任务...',
+                                border: InputBorder.none,
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isSearching = false;
+                                      _searchController.clear();
+                                    });
+                                  },
+                                ),
+                              ),
+                              onChanged: (query) {
+                                // setState(() {
+                                //   _searchQuery = query;
+                                // });
+                              },
+                            )
+                            : AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              transitionBuilder: (
+                                Widget child,
+                                Animation<double> animation,
+                              ) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                              child: Text(
+                                _getScreenTitle(),
+                                key: ValueKey<String>(
+                                  _getScreenTitle(),
+                                ), // Use title string as key
+                              ),
+                            ),
+                    actions:
+                        _isSearching && screenIndex == 0
+                            ? [
+                              // IconButton(
+                              //   icon: const Icon(Icons.close),
+                              //   tooltip: '关闭搜索',
+                              //   onPressed: () {
+                              //     setState(() {
+                              //       _isSearching = false;
+                              //       _searchController.clear();
+                              //     });
+                              //   },
+                              // ),
+                            ]
+                            : _buildActions(),
                     centerTitle: false,
                   ),
                   Expanded(child: _buildCurrentScreen()),
@@ -455,6 +526,7 @@ class _HomePageState extends State<HomePage> {
         screen = TaskScreen(
           key: _taskScreenKey, // Assign the key
           onMultiSelectModeChanged: _handleTaskMultiSelectModeChanged,
+          searchQuery: _searchQuery,
           // requestDeleteSelected and requestToggleMultiSelectMode are handled by AppBar actions calling _taskScreenKey.currentState methods
         );
         break;
@@ -471,7 +543,9 @@ class _HomePageState extends State<HomePage> {
         screen = const SettingsScreen();
         break;
       default:
-        screen = const TaskScreen();
+        screen = TaskScreen(
+          searchQuery: _searchQuery,
+        ); // Pass searchQuery here too as a fallback
         break;
     }
 

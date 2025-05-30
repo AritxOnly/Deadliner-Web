@@ -12,12 +12,14 @@ class TaskScreen extends StatefulWidget {
   onMultiSelectModeChanged;
   final VoidCallback? requestDeleteSelected;
   final VoidCallback? requestToggleMultiSelectMode;
+  final String? searchQuery; // Added for search functionality
 
   const TaskScreen({
     super.key,
     this.onMultiSelectModeChanged,
     this.requestDeleteSelected,
     this.requestToggleMultiSelectMode,
+    this.searchQuery, // Added for search functionality
   });
 
   @override
@@ -26,6 +28,7 @@ class TaskScreen extends StatefulWidget {
 
 class TaskScreenState extends State<TaskScreen> {
   final List<Map<String, dynamic>> _taskData = [];
+  List<Map<String, dynamic>> _filteredTaskData = []; // For search results
   late WebUtils webUtils;
   late ConfettiController _confettiController;
   bool _isMultiSelectMode = false;
@@ -135,6 +138,7 @@ class TaskScreenState extends State<TaskScreen> {
               });
             }
             _sortTaskData(); // Sort after fetching DDLs
+            _filterTasks(); // Apply initial filter (which might be empty query)
           });
         }
       } catch (e) {
@@ -148,6 +152,32 @@ class TaskScreenState extends State<TaskScreen> {
     }
 
     initializeConnection();
+  }
+
+  @override
+  void didUpdateWidget(covariant TaskScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.searchQuery != oldWidget.searchQuery) {
+      _filterTasks();
+    }
+  }
+
+  void _filterTasks() {
+    if (widget.searchQuery == null || widget.searchQuery!.isEmpty) {
+      setState(() {
+        _filteredTaskData = List.from(_taskData);
+      });
+    } else {
+      final query = widget.searchQuery!.toLowerCase();
+      setState(() {
+        _filteredTaskData =
+            _taskData.where((task) {
+              final title = task['title']?.toString().toLowerCase() ?? '';
+              final note = task['note']?.toString().toLowerCase() ?? '';
+              return title.contains(query) || note.contains(query);
+            }).toList();
+      });
+    }
   }
 
   @override
@@ -169,9 +199,11 @@ class TaskScreenState extends State<TaskScreen> {
       return;
     }
 
+    final taskIsCompleted = task['isCompleted'] ?? false;
+
     final nowString = DateTime.now().toIso8601String();
     final Map<String, dynamic> updates = {
-      'isCompleted': true,
+      'isCompleted': !taskIsCompleted,
       'completeTime': nowString,
       // 'progress': 0.0, // 后端可能会根据isCompleted自动处理，或者我们在这里也发送
     };
@@ -179,11 +211,40 @@ class TaskScreenState extends State<TaskScreen> {
     try {
       final success = await webUtils.updateDDL(taskId, updates);
       if (success) {
+        final taskItem = await webUtils.getDDLById(taskId);
+
+        final startDateTime = GlobalUtils.safeParseDateTime(taskItem.startTime);
+        final endDateTime = GlobalUtils.safeParseDateTime(taskItem.endTime);
+        final now = DateTime.now();
+        double progress = 0.0;
+        if (startDateTime != GlobalUtils.timeNull &&
+            endDateTime != GlobalUtils.timeNull) {
+          if (now.isBefore(startDateTime)) {
+            progress = 0.0;
+          } else if (now.isAfter(endDateTime)) {
+            progress = 1.0;
+          } else {
+            final totalDuration =
+                endDateTime.difference(startDateTime).inMilliseconds;
+            final elapsedDuration =
+                now.difference(startDateTime).inMilliseconds;
+            progress =
+                totalDuration > 0 ? elapsedDuration / totalDuration : 0.0;
+            progress = progress.clamp(0.0, 1.0);
+          }
+        } else if (endDateTime != GlobalUtils.timeNull &&
+            now.isAfter(endDateTime)) {
+          progress = 1.0;
+        }
+
+        final actualProgress = (!taskIsCompleted) ? 0.0 : progress;
+
         setState(() {
-          _taskData[index]['isCompleted'] = true;
+          _taskData[index]['isCompleted'] = !taskIsCompleted;
           _taskData[index]['completeTime'] = nowString;
-          _taskData[index]['progress'] = 0.0; // 客户端也将进度设置为0
-          _sortTaskData(); // 重新排序，已完成的会到前面（因为progress为0）
+          _taskData[index]['progress'] = actualProgress; // 客户端也将进度设置为0
+          _sortTaskData();
+          _filterTasks(); // Re-apply filter after task completion
         });
         if (GlobalUtils.fireworks) _confettiController.play();
       } else {
@@ -268,6 +329,7 @@ class TaskScreenState extends State<TaskScreen> {
           'completeTime': '', // No complete time for new tasks
         });
         _sortTaskData();
+        _filterTasks(); // Re-apply filter after adding task
       });
     } catch (e) {
       if (mounted) {
@@ -350,6 +412,7 @@ class TaskScreenState extends State<TaskScreen> {
           _taskData[index]['progress'] = progress;
           // isCompleted and completeTime remain unchanged by this method
           _sortTaskData();
+          _filterTasks(); // Re-apply filter after updating task
         });
       } else {
         throw Exception('更新任务失败');
@@ -383,6 +446,7 @@ class TaskScreenState extends State<TaskScreen> {
               _selectedTaskIndexes[i]--;
             }
           }
+          _filterTasks(); // Re-apply filter after deleting task
         });
       } else {
         throw Exception('删除任务失败');
@@ -479,6 +543,7 @@ class TaskScreenState extends State<TaskScreen> {
         _selectedTaskIndexes.clear();
         _isMultiSelectMode = false;
         _sortTaskData();
+        _filterTasks(); // Re-apply filter after deleting selected tasks
       });
       if (mounted && !allSucceeded) {
         ScaffoldMessenger.of(
@@ -527,9 +592,20 @@ class TaskScreenState extends State<TaskScreen> {
               mainAxisSpacing: 16,
               childAspectRatio: 3, // 控制任务卡片比例，宽高比为3:1
             ),
-            itemCount: _taskData.length,
+            itemCount: _filteredTaskData.length, // Use filtered data
             itemBuilder: (context, index) {
-              final task = _taskData[index];
+              final task = _filteredTaskData[index]; // Use filtered data
+              // Find original index in _taskData if needed for operations like delete/update
+              // This is important because _completeTask, updateTask, deleteTask still use original _taskData indexes.
+              // A more robust way would be to pass the task object or its ID directly to these functions.
+              // For now, we'll try to find the original index.
+              final originalIndex = _taskData.indexWhere(
+                (t) => t['id'] == task['id'],
+              );
+              if (originalIndex == -1) {
+                // This should not happen if data is consistent
+                return const SizedBox.shrink();
+              }
               final bool isSelected = _selectedTaskIndexes.contains(index);
               return DDLItemWidget(
                 title: task['title'],
@@ -540,8 +616,11 @@ class TaskScreenState extends State<TaskScreen> {
                 isCompleted: task['isCompleted'] ?? false,
                 isSelected: isSelected,
                 onTap: () {
+                  if (originalIndex == -1) return;
                   if (_isMultiSelectMode) {
-                    _toggleTaskSelection(index);
+                    _toggleTaskSelection(
+                      originalIndex,
+                    ); // Use originalIndex for multi-select
                   } else {
                     if (task['isCompleted'] ?? false) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -562,7 +641,7 @@ class TaskScreenState extends State<TaskScreen> {
                         newEndTime,
                       ) async {
                         await updateTask(
-                          index,
+                          originalIndex, // Use originalIndex
                           newTitle,
                           newNote,
                           newStartTime,
@@ -570,19 +649,23 @@ class TaskScreenState extends State<TaskScreen> {
                         );
                       },
                       onDelete: () async {
-                        await deleteTask(index);
+                        await deleteTask(originalIndex); // Use originalIndex
                       },
                     );
                   }
                 },
                 onLongPress: () {
+                  if (originalIndex == -1) return;
                   if (_isMultiSelectMode) {
-                    _toggleTaskSelection(index);
+                    _toggleTaskSelection(originalIndex); // Use originalIndex
                   } else {
-                    _completeTask(index);
+                    _completeTask(originalIndex); // Use originalIndex
                   }
                 },
-                onSelectToggle: () => _toggleTaskSelection(index),
+                onSelectToggle:
+                    () => _toggleTaskSelection(
+                      originalIndex,
+                    ), // Use originalIndex
               );
             },
           ),

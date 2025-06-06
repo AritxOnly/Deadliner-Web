@@ -40,7 +40,10 @@ class DBService {
             is_archived INTEGER,
             is_stared INTEGER,
             type TEXT NOT NULL,
-            habit_count INTEGER
+            habit_count INTEGER,
+            habit_total_count INTEGER,
+            calendar_event INTEGER,
+            timestamp TEXT
           )
         `;
         this.db.run(createTableQuery, (err) => {
@@ -55,8 +58,8 @@ class DBService {
         return new Promise((resolve, reject) => {
             const sql = `
                 INSERT INTO ddl_items 
-                (name, start_time, end_time, is_completed, complete_time, note, is_archived, is_stared, type, habit_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (name, start_time, end_time, is_completed, complete_time, note, is_archived, is_stared, type, habit_count, habit_total_count, calendar_event, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             const params = [
                 name,
@@ -68,7 +71,10 @@ class DBService {
                 0,          // is_archived: false -> 0
                 0,          // is_stared: false -> 0
                 type,
-                0           // habit_count
+                0,          // habit_count
+                0,          // habit_total_count
+                -1,          // calendar_event
+                Date().toISOString().slice(0, 23)  // timestamp
             ];
             this.db.run(sql, params, function (err) {
                 if (err) {
@@ -132,7 +138,10 @@ class DBService {
                         isArchived: Boolean(row.is_archived),
                         isStared: Boolean(row.is_stared),
                         type: row.type,
-                        habitCount: row.habit_count
+                        habitCount: row.habit_count,
+                        habitTotalCount: row.habit_total_count,
+                        calendarEvent: row.calendar_event,
+                        timeStamp: row.timestamp
                     }));
                     resolve(results);
                 }
@@ -182,7 +191,10 @@ class DBService {
                 is_archived = ?,
                 is_stared = ?,
                 type = ?,
-                habit_count = ?
+                habit_count = ?,
+                habit_total_count =?,
+                calendar_event =?,
+                timestamp =?
                 WHERE id = ?
             `;
             const params = [
@@ -196,6 +208,9 @@ class DBService {
                 item.isStared ? 1 : 0,
                 item.type,
                 item.habitCount,
+                item.habitTotalCount,
+                item.calendarEvent,
+                Date().toISOString().slice(0, 23),  // timestamp: current date and time in ISO format
                 item.id
             ];
             this.db.run(sql, params, function (err) {

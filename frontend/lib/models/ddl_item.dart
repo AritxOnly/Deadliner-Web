@@ -13,6 +13,9 @@ class DDLItem {
     this.isStared = false,
     this.type = DeadlineType.TASK,
     this.habitCount = 0,
+    this.habitTotalCount = 0,
+    this.calendarEvent = -1,
+    this.timestamp = "",
   });
 
   final int id;
@@ -26,4 +29,7 @@ class DDLItem {
   final bool isStared;
   final DeadlineType type;
   final int habitCount;
+  final int habitTotalCount;
+  final int calendarEvent;
+  final String timestamp;
 }

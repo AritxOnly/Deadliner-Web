@@ -5,11 +5,10 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const authMiddleware = require('./middleware/authMiddleware');
 
-const { sequelize } = require('./models');  // 数据库模型
-const authRoutes = require('./routes/authRoutes'); // 认证路由
-const userRoutes = require('./routes/userRoutes'); // 用户路由
 const dbRoutes = require('./routes/dbRoutes'); // 数据库操作路由
-const aiRoutes = require('./routes/aiRoutes'); // AI 规划路由
+const authRoutes = require('./routes/authRoutes'); // 认证路由
+const aiRoutes = require('./routes/aiRoutes'); // AI 相关路由
+const userRoutes = require('./routes/userRoutes'); // 用户相关路由
 
 // 全局变量
 const LOG_LEVEL = 'dev';
@@ -23,19 +22,13 @@ app.use(cors());
 app.use(morgan(LOG_LEVEL));
 app.use(bodyParser.json());
 
-app.use(API_DIR + '/auth', authRoutes);
-app.use(API_DIR + '/users', authMiddleware, userRoutes);
 app.use(API_DIR + '/db', authMiddleware, dbRoutes);
+app.use(API_DIR + '/auth', authRoutes);
 app.use(API_DIR + '/ai', authMiddleware, aiRoutes);
-
-// 启动数据库连接
-sequelize.authenticate()
-  .then(() => {
-    console.log('Database connection has been established successfully.');
-  })
-  .catch(err => {
-    console.error('Unable to connect to the database:', err);
-  });
+app.use(API_DIR + '/user', authMiddleware, userRoutes);
+app.use(API_DIR, express.Router().get('/', (req, res) => {
+    res.json({ message: 'Welcome to the API!' });
+}));
 
 // 处理未匹配的路由
 app.use((req, res, next) => {
@@ -50,6 +43,6 @@ app.use((err, req, res, next) => {
 
 // 启动服务器
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
